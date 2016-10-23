@@ -68,15 +68,15 @@ namespace Unigram.DesktopService
             {
                 args.Request.SendResponseAsync(new ValueSet()).Completed += delegate { };
 
-#if DEBUG
-                new Thread(new ThreadStart(() =>
-                {
-                    var form = new Form();
-                    form.Text = "Removing focus from App Window";
-                    form.Shown += (s, e) => SetForegroundWindow(form.Handle);
-                    form.ShowDialog();
-                })).Start();
-#endif
+//#if DEBUG
+//                new Thread(new ThreadStart(() =>
+//                {
+//                    var form = new Form();
+//                    form.Text = "Removing focus from App Window";
+//                    form.Shown += (s, e) => SetForegroundWindow(form.Handle);
+//                    form.ShowDialog();
+//                })).Start();
+//#endif
 
                 var handle = new IntPtr((long)args.Request.Message["handle"]);
                 var parent = GetParent(handle);
@@ -119,8 +119,10 @@ namespace Unigram.DesktopService
             var fi = new FLASHWINFO();
             fi.cbSize = Convert.ToUInt32(Marshal.SizeOf(fi));
             fi.hwnd = hwnd;
-            fi.dwFlags = FLASHW_ALL | FLASHW_TIMERNOFG;
-            fi.uCount = uint.MaxValue;
+            fi.dwFlags = FLASHW_ALL;
+            fi.uCount = 1;
+            //fi.dwFlags = FLASHW_ALL | FLASHW_TIMERNOFG;
+            //fi.uCount = uint.MaxValue;
             fi.dwTimeout = 0;
 
             return FlashWindowEx(ref fi);

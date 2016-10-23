@@ -17,6 +17,7 @@ using Unigram.Converters;
 using Unigram.Core.Notifications;
 using Unigram.Core.Services;
 using Windows.ApplicationModel.Background;
+using Windows.Foundation.Collections;
 using Windows.Globalization.DateTimeFormatting;
 using Windows.Networking.PushNotifications;
 using Windows.Security.Authentication.Web;
@@ -28,7 +29,7 @@ using Windows.UI.Xaml.Navigation;
 
 namespace Unigram.ViewModels
 {
-    public class MainViewModel : UnigramViewModelBase
+    public class MainViewModel : UnigramViewModelBase, IHandle<TLMessageCommonBase>, IHandle
     {
         private readonly IPushService _pushService;
 
@@ -43,12 +44,31 @@ namespace Unigram.ViewModels
             Contacts = new ContactsViewModel(ProtoService, cacheService, aggregator);
 
             aggregator.Subscribe(Dialogs);
-            aggregator.Subscribe(SearchDialogs);
+            aggregator.Subscribe(this);
         }
 
         public override async Task OnNavigatedToAsync(object parameter, NavigationMode mode, IDictionary<string, object> state)
         {
             await _pushService.RegisterAsync();
+        }
+
+        public void Handle(TLMessageCommonBase message)
+        {
+            Execute.BeginOnUIThread(async () =>
+            {
+                var corewin = Windows.UI.Core.CoreWindow.GetForCurrentThread();
+                var interop = (ICoreWindowInterop)(object)corewin;
+                var handle = interop.WindowHandle;
+
+                ValueSet valueSet = new ValueSet();
+                valueSet.Add("request", "Flash");
+                valueSet.Add("handle", handle.ToInt64());
+
+                if (App.Connection != null)
+                {
+                    var response = await App.Connection.SendMessageAsync(valueSet);
+                }
+            });
         }
 
         public ObservableCollection<string> ContactsList = new ObservableCollection<string>();

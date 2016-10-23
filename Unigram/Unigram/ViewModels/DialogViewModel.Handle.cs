@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using Telegram.Api.Aggregator;
 using Telegram.Api.Helpers;
 using Telegram.Api.TL;
+using Unigram.Common;
+using Windows.Foundation.Collections;
 
 namespace Unigram.ViewModels
 {
