@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Photos
 {
 	/// <summary>
-	/// RCP method photos.getUserPhotos
+	/// RCP method photos.getUserPhotos.
+	/// Returns <see cref="Telegram.Api.TL.TLPhotosPhotos"/>
 	/// </summary>
 	public partial class TLPhotosGetUserPhotos : TLObject
 	{
@@ -14,30 +15,28 @@ namespace Telegram.Api.TL.Methods.Photos
 		public Int32 Limit { get; set; }
 
 		public TLPhotosGetUserPhotos() { }
-		public TLPhotosGetUserPhotos(TLBinaryReader from, bool cache = false)
+		public TLPhotosGetUserPhotos(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.PhotosGetUserPhotos; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			UserId = TLFactory.Read<TLInputUserBase>(from, cache);
+			UserId = TLFactory.Read<TLInputUserBase>(from);
 			Offset = from.ReadInt32();
 			MaxId = from.ReadInt64();
 			Limit = from.ReadInt32();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x91CD32A8);
-			to.WriteObject(UserId, cache);
+			to.WriteObject(UserId);
 			to.Write(Offset);
 			to.Write(MaxId);
 			to.Write(Limit);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

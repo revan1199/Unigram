@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Channels
 {
 	/// <summary>
-	/// RCP method channels.inviteToChannel
+	/// RCP method channels.inviteToChannel.
+	/// Returns <see cref="Telegram.Api.TL.TLUpdatesBase"/>
 	/// </summary>
 	public partial class TLChannelsInviteToChannel : TLObject
 	{
@@ -12,26 +13,24 @@ namespace Telegram.Api.TL.Methods.Channels
 		public TLVector<TLInputUserBase> Users { get; set; }
 
 		public TLChannelsInviteToChannel() { }
-		public TLChannelsInviteToChannel(TLBinaryReader from, bool cache = false)
+		public TLChannelsInviteToChannel(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.ChannelsInviteToChannel; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			Channel = TLFactory.Read<TLInputChannelBase>(from, cache);
-			Users = TLFactory.Read<TLVector<TLInputUserBase>>(from, cache);
-			if (cache) ReadFromCache(from);
+			Channel = TLFactory.Read<TLInputChannelBase>(from);
+			Users = TLFactory.Read<TLVector<TLInputUserBase>>(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x199F3A6C);
-			to.WriteObject(Channel, cache);
-			to.WriteObject(Users, cache);
-			if (cache) WriteToCache(to);
+			to.WriteObject(Channel);
+			to.WriteObject(Users);
 		}
 	}
 }

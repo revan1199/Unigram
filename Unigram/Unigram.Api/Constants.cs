@@ -16,18 +16,9 @@ namespace Telegram.Api
 
         public const int DatabaseVersion = 1;
 
-        public const int SupportedLayer = 57;
+        public const int SupportedLayer = 62;
 
         public const int SecretSupportedLayer = 23;
-
-        public static List<string> ServerIpAddresses = new List<string>
-        {
-            "149.154.175.50",   // dc1
-            "149.154.167.51",   // dc2
-            "174.140.142.6",    // dc3
-            "149.154.167.91",   // dc4
-            "149.154.171.5"     // dc5
-        };
 
         public const int LongPollReattemptDelay = 5000;     //ms
         public const double MessageSendingInterval =
@@ -60,13 +51,14 @@ namespace Telegram.Api
 #endif
         public static double CheckPingInterval = 20.0;              //seconds
         public static double UpdateStatusInterval = 2.0;
-        public static int BigFileDownloadersCount = 10;
+        public static int BigFileDownloadersCount = 4;
         public static int VideoDownloadersCount = 3;
         public static int VideoUploadersCount = 3;
         public static int DocumentUploadersCount = 3;
         public static int AudioDownloadersCount = 3;
         public static int MaximumChunksCount = 3000;
-        public static int DownloadedChunkSize = 32 * 1024;    // 1MB % DownloadedChunkSize = 0 && DownloadedChunkSize % 1KB = 0
+        public static int DownloadChunkSize = 64 * 1024;    // 1MB % DownloadedChunkSize = 0 && DownloadedChunkSize % 1KB = 0
+        public static int DocumentDownloadChunkSize = 128 * 1024;    // 1MB % DownloadedChunkSize = 0 && DownloadedChunkSize % 1KB = 0
         public static ulong MaximumUploadedFileSize = 512 * 1024 * 3000;    // 1,5GB
 
         public static string StateFileName = "state.dat";

@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Messages
 {
 	/// <summary>
-	/// RCP method messages.toggleChatAdmins
+	/// RCP method messages.toggleChatAdmins.
+	/// Returns <see cref="Telegram.Api.TL.TLUpdatesBase"/>
 	/// </summary>
 	public partial class TLMessagesToggleChatAdmins : TLObject
 	{
@@ -12,26 +13,24 @@ namespace Telegram.Api.TL.Methods.Messages
 		public Boolean Enabled { get; set; }
 
 		public TLMessagesToggleChatAdmins() { }
-		public TLMessagesToggleChatAdmins(TLBinaryReader from, bool cache = false)
+		public TLMessagesToggleChatAdmins(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesToggleChatAdmins; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			ChatId = from.ReadInt32();
 			Enabled = from.ReadBoolean();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xEC8BD9E1);
 			to.Write(ChatId);
 			to.Write(Enabled);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

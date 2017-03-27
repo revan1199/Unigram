@@ -4,31 +4,30 @@ using System;
 namespace Telegram.Api.TL.Methods.Account
 {
 	/// <summary>
-	/// RCP method account.getNotifySettings
+	/// RCP method account.getNotifySettings.
+	/// Returns <see cref="Telegram.Api.TL.TLPeerNotifySettingsBase"/>
 	/// </summary>
 	public partial class TLAccountGetNotifySettings : TLObject
 	{
 		public TLInputNotifyPeerBase Peer { get; set; }
 
 		public TLAccountGetNotifySettings() { }
-		public TLAccountGetNotifySettings(TLBinaryReader from, bool cache = false)
+		public TLAccountGetNotifySettings(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.AccountGetNotifySettings; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			Peer = TLFactory.Read<TLInputNotifyPeerBase>(from, cache);
-			if (cache) ReadFromCache(from);
+			Peer = TLFactory.Read<TLInputNotifyPeerBase>(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x12B3AD31);
-			to.WriteObject(Peer, cache);
-			if (cache) WriteToCache(to);
+			to.WriteObject(Peer);
 		}
 	}
 }

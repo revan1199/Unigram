@@ -216,7 +216,7 @@ namespace Telegram.Api.Services
                                     if (dhGenOk == null)
                                     {
                                         var error = new TLRPCError { ErrorCode = 404, ErrorMessage = "Incorrect dhGen " + dhGen.GetType() };
-                                        if (faultCallback != null) faultCallback(error);
+                                        faultCallback?.Invoke(error);
                                         TLUtils.WriteLine(error.ToString());
 #if LOG_REGISTRATION
                                         TLUtils.WriteLog("DHGen result " + serverDHParams);
@@ -320,21 +320,21 @@ namespace Telegram.Api.Services
                     {
                         if (errors.Count > 0)
                         {
-                            faultCallback.SafeInvoke(errors);
+                            faultCallback?.Invoke(errors);
                         }
                         else
                         {
-                            callback.SafeInvoke();
+                            callback?.Invoke();
                         }
                     }
                     else
                     {
-                        faultCallback.SafeInvoke(errors);
+                        faultCallback?.Invoke(errors);
                     }
                 }
                 else
                 {
-                    callback.SafeInvoke();
+                    callback?.Invoke();
                 }
             });
         }
@@ -359,14 +359,14 @@ namespace Telegram.Api.Services
 
             if (transport == null)
             {
-                faultCallback.SafeInvoke(new TLRPCError { ErrorCode = 404, ErrorMessage = "LogOutAsync: Empty transport for dc id " + dcId });
+                faultCallback?.Invoke(new TLRPCError { ErrorCode = 404, ErrorMessage = "LogOutAsync: Empty transport for dc id " + dcId });
 
                 return;
             }
 
             if (transport.AuthKey == null)
             {
-                faultCallback.SafeInvoke(new TLRPCError { ErrorCode = 404, ErrorMessage = "LogOutAsync: Empty authKey for dc id " + dcId });
+                faultCallback?.Invoke(new TLRPCError { ErrorCode = 404, ErrorMessage = "LogOutAsync: Empty authKey for dc id " + dcId });
 
                 return;
             }
@@ -408,7 +408,7 @@ namespace Telegram.Api.Services
 
             if (transport == null)
             {
-                faultCallback.SafeInvoke(new TLRPCError{ ErrorCode = 404, ErrorMessage = "GetFileAsync: Empty transport for dc id " + dcId});
+                faultCallback?.Invoke(new TLRPCError{ ErrorCode = 404, ErrorMessage = "GetFileAsync: Empty transport for dc id " + dcId});
 
                 return;
             }
@@ -430,7 +430,7 @@ namespace Telegram.Api.Services
 
                 if (cancelInitializing)
                 {
-                    faultCallback.SafeInvoke(new TLRPCError { ErrorCode = 404, ErrorMessage = "DC " + dcId + " is already initializing" });
+                    faultCallback?.Invoke(new TLRPCError { ErrorCode = 404, ErrorMessage = "DC " + dcId + " is already initializing" });
                     return;
                 }
 
@@ -482,7 +482,7 @@ namespace Telegram.Api.Services
                                     Execute.ShowDebugMessage("ExportImportAuthorization error " + error);
                                 }
 
-                                faultCallback.SafeInvoke(error);
+                                faultCallback?.Invoke(error);
                             });
                     },
                     error =>
@@ -492,7 +492,7 @@ namespace Telegram.Api.Services
                             transport.IsInitializing = false;
                         }
 
-                        faultCallback.SafeInvoke(error);
+                        faultCallback?.Invoke(error);
                     });
             }
             else
@@ -511,7 +511,7 @@ namespace Telegram.Api.Services
                             Execute.ShowDebugMessage("ExportImportAuthorization error " + error);
                         }
 
-                        faultCallback.SafeInvoke(error);
+                        faultCallback?.Invoke(error);
                     });
             }
         }
@@ -533,7 +533,7 @@ namespace Telegram.Api.Services
 
                 if (authorizing)
                 {
-                    faultCallback.SafeInvoke(new TLRPCError { ErrorCode = 404, ErrorMessage = "DC " + toTransport.DCId + " is already authorizing" });
+                    faultCallback?.Invoke(new TLRPCError { ErrorCode = 404, ErrorMessage = "DC " + toTransport.DCId + " is already authorizing" });
                     return;
                 }
 
@@ -563,7 +563,7 @@ namespace Telegram.Api.Services
 
                                 _cacheService.SetConfig(_config);
 
-                                callback.SafeInvoke();
+                                callback?.Invoke();
                             },
                             error =>
                             {
@@ -571,7 +571,7 @@ namespace Telegram.Api.Services
                                 {
                                     toTransport.IsAuthorizing = false;
                                 }
-                                faultCallback.SafeInvoke(error);
+                                faultCallback?.Invoke(error);
                             });
                         ;
                     },
@@ -581,12 +581,12 @@ namespace Telegram.Api.Services
                         {
                             toTransport.IsAuthorizing = false;
                         }
-                        faultCallback.SafeInvoke(error);
+                        faultCallback?.Invoke(error);
                     });
             }
             else
             {
-                callback.SafeInvoke();
+                callback?.Invoke();
             }
         }
 
@@ -604,8 +604,7 @@ namespace Telegram.Api.Services
 
                 if (dcOption == null) return null;
 
-                bool isCreated;
-                transport = _transportService.GetFileTransport(dcOption.IpAddress, dcOption.Port, Type, out isCreated);
+                transport = _transportService.GetFileTransport(dcOption.IpAddress, dcOption.Port, Type, out bool isCreated);
                 if (isCreated)
                 {
                     transport.DCId = dcId;
@@ -667,8 +666,7 @@ namespace Telegram.Api.Services
                     var transportSessionId = transport.SessionId;
                     var transportSequenceNumber = transport.SequenceNumber;
                     var transportClientTicksDelta = transport.ClientTicksDelta;
-                    bool isCreated;
-                    transport = _transportService.GetFileTransport(transport.Host, transport.Port, Type, out isCreated);
+                    transport = _transportService.GetFileTransport(transport.Host, transport.Port, Type, out bool isCreated);
                     if (isCreated)
                     {
                         transport.DCId = transportDCId;
@@ -760,7 +758,7 @@ namespace Telegram.Api.Services
 #if DEBUG
                         RaisePropertyChanged(() => History);
 #endif
-                        faultCallback.SafeInvoke(new TLRPCError { ErrorCode = 404, ErrorMessage = "FastCallback SocketError=" + result });
+                        faultCallback?.Invoke(new TLRPCError { ErrorCode = 404, ErrorMessage = "FastCallback SocketError=" + result });
                     }
                 },
                 error =>
@@ -772,7 +770,7 @@ namespace Telegram.Api.Services
 #if DEBUG
                     RaisePropertyChanged(() => History);
 #endif
-                    faultCallback.SafeInvoke(new TLRPCError { ErrorCode = 404 });
+                    faultCallback?.Invoke(new TLRPCError { ErrorCode = 404 });
                 });
         }
 
@@ -845,14 +843,14 @@ namespace Telegram.Api.Services
                         transport.RemoveNonEncryptedItem(historyItem);
 
                         // connection is unsuccessfully
-                        faultCallback.SafeInvoke(new TLRPCError { ErrorCode = 404, ErrorMessage = "FastCallback SocketError=" + socketError });
+                        faultCallback?.Invoke(new TLRPCError { ErrorCode = 404, ErrorMessage = "FastCallback SocketError=" + socketError });
                     }
                 },
                 error =>
                 {
                     transport.RemoveNonEncryptedItem(historyItem);
 
-                    faultCallback.SafeInvoke(new TLRPCError { ErrorCode = 404 });
+                    faultCallback?.Invoke(new TLRPCError { ErrorCode = 404 });
                 });
         }
 
@@ -908,14 +906,14 @@ namespace Telegram.Api.Services
                 }
             }
 
-            lock (_debugRoot)
-            {
-                //Debug.WriteLine(">>{0, -30} MsgId {1} SeqNo {2, -4} SessionId {3}\nids:", "msgs_ack", transportMessage.MessageId.Value, transportMessage.SeqNo.Value, transportMessage.SessionId.Value);
-                foreach (var id in ids)
-                {
-                    Debug.WriteLine(id);
-                }
-            }
+            //lock (_debugRoot)
+            //{
+            //    //Debug.WriteLine(">>{0, -30} MsgId {1} SeqNo {2, -4} SessionId {3}\nids:", "msgs_ack", transportMessage.MessageId.Value, transportMessage.SeqNo.Value, transportMessage.SessionId.Value);
+            //    foreach (var id in ids)
+            //    {
+            //        Debug.WriteLine(id);
+            //    }
+            //}
 
             var captionString = string.Format("msgs_ack {0}", transportMessage.MsgId);
             SendPacketAsync(transport, captionString, encryptedMessage,
@@ -1057,7 +1055,7 @@ namespace Telegram.Api.Services
 #if DEBUG
                         RaisePropertyChanged(() => History);
 #endif
-                        faultCallback.SafeInvoke(new TLRPCError { ErrorCode = 404 });
+                        faultCallback?.Invoke(new TLRPCError { ErrorCode = 404 });
                     });
 
                     //_activeTransport.SendPacketAsync(historyItem.Caption + " " + transportMessage.MessageId, 
@@ -1144,7 +1142,7 @@ namespace Telegram.Api.Services
                             Debug.WriteLine("@{0} {1} result {2}", string.Format("{0}: {1}", historyItem.Caption, "seqNo"), transportMessage.MsgId, result);
 
                         },//ReceiveBytesAsync(result, authKey)}, 
-                        error => { if (faultCallback != null) faultCallback(null); });
+                        error => { faultCallback?.Invoke(null); });
 
                     break;
             }
@@ -1259,7 +1257,7 @@ namespace Telegram.Api.Services
                     Debug.WriteLine("@{0} {1} result {2}", historyItem.Caption, transportMessage.MsgId, result);
 
                 },//ReceiveBytesAsync(result, authKey)}, 
-                error => { if (faultCallback != null) faultCallback(new TLRPCError()); });
+                error => { faultCallback?.Invoke(new TLRPCError()); });
         }
 
         private void ProcessRPCErrorByTransport(ITransport transport, TLRPCError error, HistoryItem historyItem, long keyId)
@@ -1379,7 +1377,7 @@ namespace Telegram.Api.Services
                                 {
                                     transport.Initialized = false;
                                 }
-                                historyItem.FaultCallback.SafeInvoke(er);
+                                historyItem.FaultCallback?.Invoke(er);
                             });
                         }
                         else
@@ -1468,7 +1466,7 @@ namespace Telegram.Api.Services
                                 {
                                     transport.Initialized = false;
                                 }
-                                historyItem.FaultCallback.SafeInvoke(er);
+                                historyItem.FaultCallback?.Invoke(er);
                             });
                         }
                         else
@@ -1508,9 +1506,9 @@ namespace Telegram.Api.Services
                     }
                 }
             }
-            else if (historyItem.FaultCallback != null)
+            else
             {
-                historyItem.FaultCallback(error);
+                historyItem.FaultCallback?.Invoke(error);
             }
         }
 
@@ -1538,7 +1536,7 @@ namespace Telegram.Api.Services
 #if LOG_REGISTRATION
                             TLUtils.WriteLog("OnReceivedBytes !IsInitialized try historyItem " + item.Caption);
 #endif
-                        item.Callback.SafeInvoke(message.Query);
+                        item.Callback?.Invoke(message.Query);
                     }
                     else
                     {
@@ -1809,7 +1807,7 @@ namespace Telegram.Api.Services
                     }
                     if (transport.DCId == keyValue.Value.DCId)
                     {
-                        keyValue.Value.FaultCallback.SafeInvoke(new TLRPCError { ErrorCode = 404, ErrorMessage = "Clear History" });
+                        keyValue.Value.FaultCallback?.Invoke(new TLRPCError { ErrorCode = 404, ErrorMessage = "Clear History" });
                         keysToRemove.Add(keyValue.Key);
                     }
                 }

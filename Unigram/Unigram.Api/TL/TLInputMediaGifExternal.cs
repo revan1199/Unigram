@@ -5,29 +5,28 @@ namespace Telegram.Api.TL
 {
 	public partial class TLInputMediaGifExternal : TLInputMediaBase 
 	{
+		public String Url { get; set; }
 		public String Q { get; set; }
 
 		public TLInputMediaGifExternal() { }
-		public TLInputMediaGifExternal(TLBinaryReader from, bool cache = false)
+		public TLInputMediaGifExternal(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.InputMediaGifExternal; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Url = from.ReadString();
 			Q = from.ReadString();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x4843B0FD);
 			to.Write(Url);
 			to.Write(Q);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

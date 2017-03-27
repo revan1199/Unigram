@@ -4,27 +4,26 @@ using System;
 namespace Telegram.Api.TL.Methods.Account
 {
 	/// <summary>
-	/// RCP method account.resetNotifySettings
+	/// RCP method account.resetNotifySettings.
+	/// Returns <see cref="Telegram.Api.TL.TLBoolBase"/>
 	/// </summary>
 	public partial class TLAccountResetNotifySettings : TLObject
 	{
 		public TLAccountResetNotifySettings() { }
-		public TLAccountResetNotifySettings(TLBinaryReader from, bool cache = false)
+		public TLAccountResetNotifySettings(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.AccountResetNotifySettings; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xDB7E1747);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

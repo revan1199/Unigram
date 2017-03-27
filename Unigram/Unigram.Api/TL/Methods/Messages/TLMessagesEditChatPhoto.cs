@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Messages
 {
 	/// <summary>
-	/// RCP method messages.editChatPhoto
+	/// RCP method messages.editChatPhoto.
+	/// Returns <see cref="Telegram.Api.TL.TLUpdatesBase"/>
 	/// </summary>
 	public partial class TLMessagesEditChatPhoto : TLObject
 	{
@@ -12,26 +13,24 @@ namespace Telegram.Api.TL.Methods.Messages
 		public TLInputChatPhotoBase Photo { get; set; }
 
 		public TLMessagesEditChatPhoto() { }
-		public TLMessagesEditChatPhoto(TLBinaryReader from, bool cache = false)
+		public TLMessagesEditChatPhoto(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesEditChatPhoto; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			ChatId = from.ReadInt32();
-			Photo = TLFactory.Read<TLInputChatPhotoBase>(from, cache);
-			if (cache) ReadFromCache(from);
+			Photo = TLFactory.Read<TLInputChatPhotoBase>(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xCA4C79D8);
 			to.Write(ChatId);
-			to.WriteObject(Photo, cache);
-			if (cache) WriteToCache(to);
+			to.WriteObject(Photo);
 		}
 	}
 }

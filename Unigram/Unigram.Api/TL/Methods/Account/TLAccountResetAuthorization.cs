@@ -4,31 +4,30 @@ using System;
 namespace Telegram.Api.TL.Methods.Account
 {
 	/// <summary>
-	/// RCP method account.resetAuthorization
+	/// RCP method account.resetAuthorization.
+	/// Returns <see cref="Telegram.Api.TL.TLBoolBase"/>
 	/// </summary>
 	public partial class TLAccountResetAuthorization : TLObject
 	{
 		public Int64 Hash { get; set; }
 
 		public TLAccountResetAuthorization() { }
-		public TLAccountResetAuthorization(TLBinaryReader from, bool cache = false)
+		public TLAccountResetAuthorization(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.AccountResetAuthorization; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Hash = from.ReadInt64();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xDF77F3BC);
 			to.Write(Hash);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

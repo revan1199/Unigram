@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Contacts
 {
 	/// <summary>
-	/// RCP method contacts.getTopPeers
+	/// RCP method contacts.getTopPeers.
+	/// Returns <see cref="Telegram.Api.TL.TLContactsTopPeersBase"/>
 	/// </summary>
 	public partial class TLContactsGetTopPeers : TLObject
 	{
@@ -30,30 +31,28 @@ namespace Telegram.Api.TL.Methods.Contacts
 		public Int32 Hash { get; set; }
 
 		public TLContactsGetTopPeers() { }
-		public TLContactsGetTopPeers(TLBinaryReader from, bool cache = false)
+		public TLContactsGetTopPeers(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.ContactsGetTopPeers; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
 			Offset = from.ReadInt32();
 			Limit = from.ReadInt32();
 			Hash = from.ReadInt32();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xD4982DB5);
 			to.Write((Int32)Flags);
 			to.Write(Offset);
 			to.Write(Limit);
 			to.Write(Hash);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

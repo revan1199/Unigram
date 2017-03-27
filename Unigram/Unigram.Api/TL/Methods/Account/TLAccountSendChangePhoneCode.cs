@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Account
 {
 	/// <summary>
-	/// RCP method account.sendChangePhoneCode
+	/// RCP method account.sendChangePhoneCode.
+	/// Returns <see cref="Telegram.Api.TL.TLAuthSentCode"/>
 	/// </summary>
 	public partial class TLAccountSendChangePhoneCode : TLObject
 	{
@@ -23,22 +24,21 @@ namespace Telegram.Api.TL.Methods.Account
 		public Boolean? CurrentNumber { get; set; }
 
 		public TLAccountSendChangePhoneCode() { }
-		public TLAccountSendChangePhoneCode(TLBinaryReader from, bool cache = false)
+		public TLAccountSendChangePhoneCode(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.AccountSendChangePhoneCode; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
 			PhoneNumber = from.ReadString();
 			if (HasCurrentNumber) CurrentNumber = from.ReadBoolean();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			UpdateFlags();
 
@@ -46,7 +46,6 @@ namespace Telegram.Api.TL.Methods.Account
 			to.Write((Int32)Flags);
 			to.Write(PhoneNumber);
 			if (HasCurrentNumber) to.Write(CurrentNumber.Value);
-			if (cache) WriteToCache(to);
 		}
 
 		private void UpdateFlags()

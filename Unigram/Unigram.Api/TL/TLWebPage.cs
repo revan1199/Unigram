@@ -20,6 +20,7 @@ namespace Telegram.Api.TL
 			Duration = (1 << 7),
 			Author = (1 << 8),
 			Document = (1 << 9),
+			CachedPage = (1 << 10),
 		}
 
 		public bool HasType { get { return Flags.HasFlag(Flag.Type); } set { Flags = value ? (Flags | Flag.Type) : (Flags & ~Flag.Type); } }
@@ -34,10 +35,12 @@ namespace Telegram.Api.TL
 		public bool HasDuration { get { return Flags.HasFlag(Flag.Duration); } set { Flags = value ? (Flags | Flag.Duration) : (Flags & ~Flag.Duration); } }
 		public bool HasAuthor { get { return Flags.HasFlag(Flag.Author); } set { Flags = value ? (Flags | Flag.Author) : (Flags & ~Flag.Author); } }
 		public bool HasDocument { get { return Flags.HasFlag(Flag.Document); } set { Flags = value ? (Flags | Flag.Document) : (Flags & ~Flag.Document); } }
+		public bool HasCachedPage { get { return Flags.HasFlag(Flag.CachedPage); } set { Flags = value ? (Flags | Flag.CachedPage) : (Flags & ~Flag.CachedPage); } }
 
 		public Flag Flags { get; set; }
 		public String Url { get; set; }
 		public String DisplayUrl { get; set; }
+		public Int32 Hash { get; set; }
 		public String Type { get; set; }
 		public String SiteName { get; set; }
 		public String Title { get; set; }
@@ -50,58 +53,61 @@ namespace Telegram.Api.TL
 		public Int32? Duration { get; set; }
 		public String Author { get; set; }
 		public TLDocumentBase Document { get; set; }
+		public TLPageBase CachedPage { get; set; }
 
 		public TLWebPage() { }
-		public TLWebPage(TLBinaryReader from, bool cache = false)
+		public TLWebPage(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.WebPage; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
 			Id = from.ReadInt64();
 			Url = from.ReadString();
 			DisplayUrl = from.ReadString();
+			Hash = from.ReadInt32();
 			if (HasType) Type = from.ReadString();
 			if (HasSiteName) SiteName = from.ReadString();
 			if (HasTitle) Title = from.ReadString();
 			if (HasDescription) Description = from.ReadString();
-			if (HasPhoto) Photo = TLFactory.Read<TLPhotoBase>(from, cache);
+			if (HasPhoto) Photo = TLFactory.Read<TLPhotoBase>(from);
 			if (HasEmbedUrl) EmbedUrl = from.ReadString();
 			if (HasEmbedType) EmbedType = from.ReadString();
 			if (HasEmbedWidth) EmbedWidth = from.ReadInt32();
 			if (HasEmbedHeight) EmbedHeight = from.ReadInt32();
 			if (HasDuration) Duration = from.ReadInt32();
 			if (HasAuthor) Author = from.ReadString();
-			if (HasDocument) Document = TLFactory.Read<TLDocumentBase>(from, cache);
-			if (cache) ReadFromCache(from);
+			if (HasDocument) Document = TLFactory.Read<TLDocumentBase>(from);
+			if (HasCachedPage) CachedPage = TLFactory.Read<TLPageBase>(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			UpdateFlags();
 
-			to.Write(0xCA820ED7);
+			to.Write(0x5F07B4BC);
 			to.Write((Int32)Flags);
 			to.Write(Id);
 			to.Write(Url);
 			to.Write(DisplayUrl);
+			to.Write(Hash);
 			if (HasType) to.Write(Type);
 			if (HasSiteName) to.Write(SiteName);
 			if (HasTitle) to.Write(Title);
 			if (HasDescription) to.Write(Description);
-			if (HasPhoto) to.WriteObject(Photo, cache);
+			if (HasPhoto) to.WriteObject(Photo);
 			if (HasEmbedUrl) to.Write(EmbedUrl);
 			if (HasEmbedType) to.Write(EmbedType);
 			if (HasEmbedWidth) to.Write(EmbedWidth.Value);
 			if (HasEmbedHeight) to.Write(EmbedHeight.Value);
 			if (HasDuration) to.Write(Duration.Value);
 			if (HasAuthor) to.Write(Author);
-			if (HasDocument) to.WriteObject(Document, cache);
-			if (cache) WriteToCache(to);
+			if (HasDocument) to.WriteObject(Document);
+			if (HasCachedPage) to.WriteObject(CachedPage);
 		}
 
 		private void UpdateFlags()
@@ -118,6 +124,7 @@ namespace Telegram.Api.TL
 			HasDuration = Duration != null;
 			HasAuthor = Author != null;
 			HasDocument = Document != null;
+			HasCachedPage = CachedPage != null;
 		}
 	}
 }

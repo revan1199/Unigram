@@ -1,32 +1,37 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using Telegram.Api.Helpers;
+using Telegram.Api.Services.FileManager;
 using Telegram.Api.TL;
+using Unigram.Core.Dependency;
+using Windows.ApplicationModel;
 using Windows.Foundation;
-using Windows.Foundation.Collections;
+using Windows.Media.Audio;
+using Windows.Media.Render;
+using Windows.Storage;
 using Windows.UI;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Controls.Primitives;
-using Windows.UI.Xaml.Data;
-using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Media.Imaging;
-using Windows.UI.Xaml.Navigation;
-
-// The User Control item template is documented at http://go.microsoft.com/fwlink/?LinkId=234236
+using Unigram.Common;
 
 namespace Unigram.Controls.Media
 {
     public sealed partial class VoiceMediaControl : UserControl
     {
-        public TLMessageMediaDocument ViewModel => DataContext as TLMessageMediaDocument;
+        public TLMessage ViewModel => DataContext as TLMessage;
 
         public VoiceMediaControl()
         {
             InitializeComponent();
+
+            _timer = new DispatcherTimer();
+            _timer.Interval = TimeSpan.FromMilliseconds(200);
+            _timer.Tick += OnTick;
 
             DataContextChanged += (s, args) =>
             {
@@ -34,20 +39,57 @@ namespace Unigram.Controls.Media
                 {
                     Loading?.Invoke(s, null);
 
-                    var document = ViewModel.Document as TLDocument;
-                    if (document != null)
+                    var mediaDocument = ViewModel.Media as TLMessageMediaDocument;
+                    if (mediaDocument != null)
                     {
-                        var audioAttribute = document.Attributes.OfType<TLDocumentAttributeAudio>().FirstOrDefault();
-                        if (audioAttribute != null && audioAttribute.HasWaveform)
+                        var document = mediaDocument.Document as TLDocument;
+                        if (document != null)
                         {
-                            UpdateSlide(audioAttribute.Waveform);
+                            UpdateGlyph();
+
+                            var audioAttribute = document.Attributes.OfType<TLDocumentAttributeAudio>().FirstOrDefault();
+                            if (audioAttribute != null)
+                            {
+                                DurationLabel.Text = TimeSpan.FromSeconds(audioAttribute.Duration).ToString("mm\\:ss");
+
+                                //if (audioAttribute.HasWaveform)
+                                //{
+                                //    UpdateSlide(audioAttribute.Waveform);
+                                //}
+                                //else
+                                //{
+                                //    UpdateSlide(new byte[] { 0, 0, 0 });
+                                //}
+                            }
                         }
                     }
                 }
             };
         }
 
+        private void UpdateGlyph()
+        {
+            var documentMedia = ViewModel?.Media as TLMessageMediaDocument;
+            if (documentMedia != null)
+            {
+                var document = documentMedia.Document as TLDocument;
+                if (document != null)
+                {
+                    var fileName = Path.GetFileNameWithoutExtension(document.GetFileName()) + ".ogg";
+                    if (File.Exists(FileUtils.GetTempFileName(fileName)))
+                    {
+                        StatusGlyph.Glyph = _state == PlaybackState.Playing ? "\uE103" : "\uE102";
+                    }
+                    else
+                    {
+                        StatusGlyph.Glyph = _state == PlaybackState.Loading ? "\uE10A" : "\uE118";
+                    }
+                }
+            }
+        }
+
         #region Drawing
+
         private byte[] _oldWaveform;
 
         private void UpdateSlide(byte[] waveform)
@@ -78,31 +120,28 @@ namespace Unigram.Controls.Media
             var background = new WriteableBitmap((int)imageWidth, imageHeight);
             var foreground = new WriteableBitmap((int)imageWidth, imageHeight);
 
-            var backgroundOut = new byte[background.PixelWidth * background.PixelHeight * 4];
-            var foregroundOut = new byte[foreground.PixelWidth * foreground.PixelHeight * 4];
+            var backgroundBuffer = new byte[background.PixelWidth * background.PixelHeight * 4];
+            var foregroundBuffer = new byte[foreground.PixelWidth * foreground.PixelHeight * 4];
 
-            int index = 0;
-            while (index < maxLines)
+            for (int index = 0; index < maxLines; index++)
             {
                 var lineIndex = (int)(index * maxWidth);
-                var lineHeight = result[lineIndex] * (double)(imageHeight - 3.0) + 3.0;
+                var lineHeight = result[lineIndex] * (double)(imageHeight - 4.0) + 4.0;
 
                 var x1 = (int)(index * (lineWidth + space));
                 var y1 = imageHeight - (int)lineHeight;
                 var x2 = (int)(index * (lineWidth + space) + lineWidth);
                 var y2 = imageHeight;
 
-                DrawFilledRectangle(ref backgroundOut, background.PixelWidth, background.PixelHeight, x1, y1, x2, y2, backgroundColor);
-                DrawFilledRectangle(ref foregroundOut, foreground.PixelWidth, foreground.PixelHeight, x1, y1, x2, y2, foregroundColor);
-
-                index++;
+                DrawFilledRectangle(ref backgroundBuffer, background.PixelWidth, background.PixelHeight, x1, y1, x2, y2, backgroundColor);
+                DrawFilledRectangle(ref foregroundBuffer, foreground.PixelWidth, foreground.PixelHeight, x1, y1, x2, y2, foregroundColor);
             }
 
             using (Stream backgroundStream = background.PixelBuffer.AsStream())
             using (Stream foregroundStream = foreground.PixelBuffer.AsStream())
             {
-                backgroundStream.Write(backgroundOut, 0, backgroundOut.Length);
-                foregroundStream.Write(foregroundOut, 0, foregroundOut.Length);
+                backgroundStream.Write(backgroundBuffer, 0, backgroundBuffer.Length);
+                foregroundStream.Write(foregroundBuffer, 0, foregroundBuffer.Length);
             }
 
             Slide.Background = new ImageBrush { ImageSource = background, AlignmentX = AlignmentX.Right, AlignmentY = AlignmentY.Center, Stretch = Stretch.None };
@@ -137,11 +176,125 @@ namespace Unigram.Controls.Media
                 line += width;
             }
         }
+
         #endregion
 
         /// <summary>
         /// x:Bind hack
         /// </summary>
         public new event TypedEventHandler<FrameworkElement, object> Loading;
+
+        #region Play
+
+        private DispatcherTimer _timer;
+        private PlaybackState _state = PlaybackState.Paused;
+        private AudioGraph _graph;
+        private AudioDeviceOutputNode _deviceOutputNode;
+        private AudioFileInputNode _fileInputNode;
+
+        private async void Toggle_Click(object sender, RoutedEventArgs e)
+        {
+            if (_state == PlaybackState.Paused)
+            {
+                var documentMedia = ViewModel?.Media as TLMessageMediaDocument;
+                if (documentMedia != null)
+                {
+                    var document = documentMedia.Document as TLDocument;
+                    if (document != null)
+                    {
+                        var fileName = Path.GetFileNameWithoutExtension(document.GetFileName()) + ".ogg";
+                        if (File.Exists(FileUtils.GetTempFileName(fileName)) == false)
+                        {
+                            _state = PlaybackState.Loading;
+                            UpdateGlyph();
+                            var manager = UnigramContainer.Current.ResolveType<IDownloadDocumentFileManager>();
+                            var download = await manager.DownloadFileAsync(fileName, document.DCId, document.ToInputFileLocation(), document.Size).AsTask(documentMedia.Download());
+                        }
+
+                        var settings = new AudioGraphSettings(AudioRenderCategory.Media);
+                        settings.QuantumSizeSelectionMode = QuantumSizeSelectionMode.LowestLatency;
+
+                        var result = await AudioGraph.CreateAsync(settings);
+                        if (result.Status != AudioGraphCreationStatus.Success)
+                            return;
+
+                        _graph = result.Graph;
+                        Debug.WriteLine("Graph successfully created!");
+
+                        var file = await FileUtils.GetTempFileAsync(fileName);
+
+                        var fileInputNodeResult = await _graph.CreateFileInputNodeAsync(file);
+                        if (fileInputNodeResult.Status != AudioFileNodeCreationStatus.Success)
+                            return;
+
+                        var deviceOutputNodeResult = await _graph.CreateDeviceOutputNodeAsync();
+                        if (deviceOutputNodeResult.Status != AudioDeviceNodeCreationStatus.Success)
+                            return;
+
+                        _deviceOutputNode = deviceOutputNodeResult.DeviceOutputNode;
+                        _fileInputNode = fileInputNodeResult.FileInputNode;
+                        _fileInputNode.AddOutgoingConnection(_deviceOutputNode);
+                        _fileInputNode.FileCompleted += OnFileCompleted;
+
+                        _graph.Start();
+                        _timer.Start();
+                        _state = PlaybackState.Playing;
+                        UpdateGlyph();
+                        Slide.Maximum = _fileInputNode.Duration.TotalMilliseconds;
+                        Slide.Value = 0;
+                    }
+                }
+            }
+            else if (_state == PlaybackState.Playing)
+            {
+                _graph?.Stop();
+                _state = PlaybackState.Paused;
+                UpdateGlyph();
+            }
+        }
+
+        private void OnFileCompleted(AudioFileInputNode sender, object args)
+        {
+            Execute.BeginOnUIThread(() =>
+            {
+                _graph.Stop();
+                _timer.Stop();
+                _fileInputNode.Seek(TimeSpan.Zero);
+                _state = PlaybackState.Paused;
+                UpdateGlyph();
+                DurationLabel.Text = _fileInputNode.Duration.ToString("mm\\:ss");
+                Slide.Value = 0;
+            });
+        }
+
+        private void OnTick(object sender, object e)
+        {
+            DurationLabel.Text = _fileInputNode.Position.ToString("mm\\:ss") + " / " + _fileInputNode.Duration.ToString("mm\\:ss");
+            Slide.Value = _fileInputNode.Position.TotalMilliseconds;
+            //_position += 200;
+            ////Indicator.Value = _fileNode.Position.TotalMilliseconds;
+
+            //if (_position >= Indicator.Maximum)
+            //{
+            //    _position = 200;
+            //    _timer.Stop();
+            //    _graph.Stop();
+            //    _fileNode.Seek(TimeSpan.Zero);
+
+            //    VisualStateManager.GoToState(this, "Paused", false);
+            //    State = PlaybackState.Paused;
+            //    Indicator.Value = 0;
+            //    CurrentPlaying = null;
+            //}
+        }
+
+        #endregion
+
+        private enum PlaybackState
+        {
+            Loading,
+            Playing,
+            Paused
+        }
     }
 }

@@ -4,31 +4,30 @@ using System;
 namespace Telegram.Api.TL.Methods
 {
 	/// <summary>
-	/// RCP method req_pq
+	/// RCP method req_pq.
+	/// Returns <see cref="Telegram.Api.TL.TLResPQ"/>
 	/// </summary>
 	public partial class TLReqPQ : TLObject
 	{
 		public TLInt128 Nonce { get; set; }
 
 		public TLReqPQ() { }
-		public TLReqPQ(TLBinaryReader from, bool cache = false)
+		public TLReqPQ(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.ReqPQ; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			Nonce = new TLInt128(from, cache);
-			if (cache) ReadFromCache(from);
+			Nonce = new TLInt128(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x60469778);
-			to.WriteObject(Nonce, cache);
-			if (cache) WriteToCache(to);
+			to.WriteObject(Nonce);
 		}
 	}
 }

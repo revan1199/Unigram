@@ -4,31 +4,30 @@ using System;
 namespace Telegram.Api.TL.Methods.Channels
 {
 	/// <summary>
-	/// RCP method channels.exportInvite
+	/// RCP method channels.exportInvite.
+	/// Returns <see cref="Telegram.Api.TL.TLExportedChatInviteBase"/>
 	/// </summary>
 	public partial class TLChannelsExportInvite : TLObject
 	{
 		public TLInputChannelBase Channel { get; set; }
 
 		public TLChannelsExportInvite() { }
-		public TLChannelsExportInvite(TLBinaryReader from, bool cache = false)
+		public TLChannelsExportInvite(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.ChannelsExportInvite; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			Channel = TLFactory.Read<TLInputChannelBase>(from, cache);
-			if (cache) ReadFromCache(from);
+			Channel = TLFactory.Read<TLInputChannelBase>(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xC7560885);
-			to.WriteObject(Channel, cache);
-			if (cache) WriteToCache(to);
+			to.WriteObject(Channel);
 		}
 	}
 }

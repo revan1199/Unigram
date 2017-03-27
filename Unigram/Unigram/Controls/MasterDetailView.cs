@@ -10,6 +10,9 @@ using Unigram.Views;
 using Template10.Common;
 using Windows.UI.Xaml.Media;
 using Unigram.Core.Services;
+using Unigram.Views.Users;
+using System.Diagnostics;
+using Windows.UI.ViewManagement;
 
 // The Templated Control item template is documented at http://go.microsoft.com/fwlink/?LinkId=234235
 
@@ -43,6 +46,8 @@ namespace Unigram.Controls
         {
             UpdateVisualState();
 
+            VisualStateManager.GoToState(this, "ResetState", false);
+
             if (CurrentState != MasterDetailState.Narrow && ViewStateChanged != null)
             {
                 ViewStateChanged(this, EventArgs.Empty);
@@ -65,22 +70,22 @@ namespace Unigram.Controls
             {
                 if (CurrentState != MasterDetailState.Narrow)
                 {
-                    if (DetailFrame.SourcePageType == typeof(DialogPage) ||
-                        DetailFrame.SourcePageType == typeof(AboutPage) ||
-                        DetailFrame.SourcePageType == typeof(SettingsPage))
-                    {
-                        SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility =
-                            AppViewBackButtonVisibility.Collapsed;
-                    }else
-                    {
-                        SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility =
-                        AppViewBackButtonVisibility.Visible;
-                    }
+                    //if (DetailFrame.SourcePageType == typeof(DialogPage) ||
+                    //    DetailFrame.SourcePageType == typeof(AboutPage) ||
+                    //    DetailFrame.SourcePageType == typeof(SettingsPage))
+                    //{
+                    //    SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility =
+                    //        AppViewBackButtonVisibility.Collapsed;
+                    //}else
+                    //{
+                    //    SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility =
+                    //    AppViewBackButtonVisibility.Visible;
+                    //}
                 }
                 else
                 {
-                    SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility =
-                        AppViewBackButtonVisibility.Visible;
+                    //SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility =
+                    //    AppViewBackButtonVisibility.Visible;
                 }
             }
         }
@@ -158,8 +163,8 @@ namespace Unigram.Controls
                     IsMasterHidden = true;
 
                     // Now that there is a backstack, show the back button in titlebar
-                    SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility =
-                    AppViewBackButtonVisibility.Visible;
+                    //SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility =
+                    //AppViewBackButtonVisibility.Visible;
 
                     var anim = new DrillInThemeAnimation();
                     anim.EntranceTarget = new Border();
@@ -174,8 +179,8 @@ namespace Unigram.Controls
                     IsMasterHidden = false;
 
                     // No navigation backstack, hide back button in titlebar
-                    SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility =
-                    AppViewBackButtonVisibility.Collapsed;
+                    //SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility =
+                    //AppViewBackButtonVisibility.Collapsed;
 
                     var anim = new DrillOutThemeAnimation();
                     anim.EntranceTarget = MasterPresenter;
@@ -227,7 +232,7 @@ namespace Unigram.Controls
                         UpdateVisualState();
                     }
                     // When the new page is user info show the back button in titlebar.
-                    else if (e.SourcePageType == typeof(UserInfoPage))
+                    else if (e.SourcePageType == typeof(UserDetailsPage))
                     {
                         UpdateVisualState();
                     }
@@ -246,7 +251,7 @@ namespace Unigram.Controls
             var service = WindowWrapper.Current().NavigationServices.GetByFrameId(key) as NavigationService;
             if (service == null)
             {
-                service = Template10.Common.BootStrapper.Current.NavigationServiceFactory(Template10.Common.BootStrapper.BackButton.Ignore, Template10.Common.BootStrapper.ExistingContent.Exclude) as NavigationService;
+                service = BootStrapper.Current.NavigationServiceFactory(BootStrapper.BackButton.Ignore, BootStrapper.ExistingContent.Exclude) as NavigationService;
                 service.SerializationService = TLSerializationService.Current;
                 service.FrameFacade.FrameId = key;
                 service.FrameFacade.BackRequested += (s, args) =>

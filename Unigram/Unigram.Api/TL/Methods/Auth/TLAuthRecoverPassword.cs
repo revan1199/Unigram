@@ -4,31 +4,30 @@ using System;
 namespace Telegram.Api.TL.Methods.Auth
 {
 	/// <summary>
-	/// RCP method auth.recoverPassword
+	/// RCP method auth.recoverPassword.
+	/// Returns <see cref="Telegram.Api.TL.TLAuthAuthorization"/>
 	/// </summary>
 	public partial class TLAuthRecoverPassword : TLObject
 	{
 		public String Code { get; set; }
 
 		public TLAuthRecoverPassword() { }
-		public TLAuthRecoverPassword(TLBinaryReader from, bool cache = false)
+		public TLAuthRecoverPassword(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.AuthRecoverPassword; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Code = from.ReadString();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x4EA56E92);
 			to.Write(Code);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

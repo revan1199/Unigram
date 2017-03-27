@@ -4,31 +4,30 @@ using System;
 namespace Telegram.Api.TL.Methods.Auth
 {
 	/// <summary>
-	/// RCP method auth.checkPhone
+	/// RCP method auth.checkPhone.
+	/// Returns <see cref="Telegram.Api.TL.TLAuthCheckedPhone"/>
 	/// </summary>
 	public partial class TLAuthCheckPhone : TLObject
 	{
 		public String PhoneNumber { get; set; }
 
 		public TLAuthCheckPhone() { }
-		public TLAuthCheckPhone(TLBinaryReader from, bool cache = false)
+		public TLAuthCheckPhone(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.AuthCheckPhone; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			PhoneNumber = from.ReadString();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x6FE51DFB);
 			to.Write(PhoneNumber);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

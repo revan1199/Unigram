@@ -5,21 +5,127 @@ using System.Text;
 using System.Threading.Tasks;
 using Telegram.Api.Aggregator;
 using Telegram.Api.Helpers;
+using Telegram.Api.Services.Cache.EventArgs;
 using Telegram.Api.TL;
 using Unigram.Common;
-using Windows.Foundation.Collections;
+using Unigram.Converters;
+using Unigram.Services;
 
 namespace Unigram.ViewModels
 {
-    public partial class DialogViewModel : 
+    public partial class DialogViewModel :
         IHandle<TLMessageCommonBase>,
+        IHandle<TLUpdateChannelPinnedMessage>,
         IHandle<TLUpdateEditChannelMessage>,
         IHandle<TLUpdateEditMessage>,
+        IHandle<MessagesRemovedEventArgs>,
+        IHandle<TLUpdateUserStatus>,
         IHandle
     {
+        public void Handle(MessagesRemovedEventArgs args)
+        {
+            if (With == args.Dialog.With && args.Messages != null)
+            {
+                Execute.BeginOnUIThread(() =>
+                {
+                    foreach (var message in args.Messages)
+                    {
+                        var removed = Messages.Remove(message);
+                        if (removed == false)
+                        {
+                            // Check if this is really needed
+
+                            var already = Messages.FirstOrDefault(x => x.Id == message.Id);
+                            if (already != null)
+                            {
+                                Messages.Remove(already);
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        public void Handle(TLUpdateUserStatus statusUpdate)
+        {
+            Execute.BeginOnUIThread(() =>
+            {
+                var user = With as TLUser;
+                if (user != null)
+                {
+                    LastSeen = LastSeenHelper.GetLastSeenTime(user);
+                }
+                else
+                {
+                    //if (online > -1)
+                    //{
+                    //    if (statusUpdate.Status.GetType() == typeof(TLUserStatusOnline)) online++;
+                    //    else online--;
+                    //    LastSeen = participantCount + " members" + ((online > 0) ? (", " + online + " online") : "");
+                    //}
+                }
+            });
+        }
+
+        private async Task<string> GetSubtitle()
+        {
+            var user = With as TLUser;
+            if (user != null && user.HasStatus)
+            {
+                return LastSeenHelper.GetLastSeenTime(user);
+            }
+
+            var channel = With as TLChannel;
+            if (channel != null)
+            {
+                var response = await ProtoService.GetFullChannelAsync(new TLInputChannel { ChannelId = channel.Id, AccessHash = channel.AccessHash.Value });
+                if (response.IsSucceeded)
+                {
+                    var channelFull = response.Result.FullChat as TLChannelFull;
+                    if (channelFull != null)
+                    {
+                        if (channel.IsBroadcast && channelFull.HasParticipantsCount)
+                        {
+                            return string.Format("{0} members", channelFull.ParticipantsCount.Value);
+                        }
+                        else if (channelFull.HasParticipantsCount)
+                        {
+                            var config = CacheService.GetConfig();
+                            if (config != null && channelFull.ParticipantsCount <= config.ChatSizeMax)
+                            {
+                                var participants = await ProtoService.GetParticipantsAsync(new TLInputChannel { ChannelId = channel.Id, AccessHash = channel.AccessHash.Value }, null, 0, config.ChatSizeMax);
+                                if (participants.IsSucceeded)
+                                {
+                                    var count = 0;
+                                    foreach (var item in participants.Result.Users.OfType<TLUser>())
+                                    {
+                                        if (item.HasStatus && item.Status is TLUserStatusOnline)
+                                        {
+                                            count++;
+                                        }
+                                    }
+
+                                    if (count > 1)
+                                    {
+                                        return string.Format("{0} members, {1} online", channelFull.ParticipantsCount.Value, count);
+                                    }
+                                }
+                            }
+
+                            return string.Format("{0} members", channelFull.ParticipantsCount.Value);
+                        }
+                    }
+                }
+
+
+            }
+
+            return string.Empty;
+        }
+
         public void Handle(TLUpdateEditChannelMessage update)
         {
-            var channel = this.With as TLChannel;
+            var channel = With as TLChannel;
             if (channel == null)
             {
                 return;
@@ -40,7 +146,8 @@ namespace Unigram.ViewModels
                     {
                         return;
                     }
-                    if (already != message)
+
+                    //if (already != message)
                     {
                         already.Edit(message);
                     }
@@ -83,14 +190,15 @@ namespace Unigram.ViewModels
 
             if (flag)
             {
-                Execute.BeginOnUIThread(() => 
+                Execute.BeginOnUIThread(() =>
                 {
                     var already = Messages.FirstOrDefault(x => x.Id == update.Message.Id) as TLMessage;
                     if (already == null)
                     {
                         return;
                     }
-                    if (already != message)
+
+                    //if (already != message)
                     {
                         already.Edit(message);
                     }
@@ -106,6 +214,15 @@ namespace Unigram.ViewModels
             }
         }
 
+        public void Handle(TLUpdateChannelPinnedMessage update)
+        {
+            var channel = With as TLChannel;
+            if (channel != null && channel.Id == update.ChannelId)
+            {
+                ShowPinnedMessage(channel);
+            }
+        }
+
         public void Handle(TLMessageCommonBase messageCommon)
         {
             if (messageCommon == null) return;
@@ -116,14 +233,29 @@ namespace Unigram.ViewModels
             //    return;
             //}
 
+            if (messageCommon is TLMessage message)
+            {
+                if (message.IsOut && !message.HasFwdFrom && message.Media is TLMessageMediaDocument documentMedia)
+                {
+                    if (message.IsGif(true))
+                    {
+                        _stickersService.AddRecentGif(documentMedia.Document as TLDocument, message.Date);
+                    }
+                    else if (message.IsSticker())
+                    {
+                        _stickersService.AddRecentSticker(StickerType.Image, documentMedia.Document as TLDocument, message.Date);
+                    }
+                }
+            }
+
             if (With is TLUserBase && messageCommon.ToId is TLPeerUser && !messageCommon.IsOut && ((TLUserBase)With).Id == messageCommon.FromId.Value)
             {
                 InsertMessage(messageCommon);
 
                 //if (this._isActive)
                 {
-                    var message = messageCommon as TLMessage;
-                    if (message != null)
+                    //var message = messageCommon as TLMessage;
+                    //if (message != null)
                     {
                         //var replyKeyboardRows = message.ReplyMarkup as IReplyKeyboardRows;
                         //if (replyKeyboardRows != null)
@@ -207,7 +339,7 @@ namespace Unigram.ViewModels
                         var user = CacheService.GetUser(message.FromId) as TLUser;
                         if (user != null && user.IsBot)
                         {
-                            //SetReplyMarkup(message, false);
+                            SetReplyMarkup(message);
                         }
                     }
 
@@ -239,7 +371,7 @@ namespace Unigram.ViewModels
                 //    {
                 //        return;
                 //    }
-                _currentDialog = (_currentDialog ?? CacheService.GetDialog(TLUtils.InputPeerToPeer(Peer, SettingsHelper.UserId)));
+                _currentDialog = (_currentDialog ?? CacheService.GetDialog(Peer.ToPeer()));
 
                 var dialog = _currentDialog;
                 if (dialog != null)

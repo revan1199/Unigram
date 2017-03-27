@@ -35,7 +35,7 @@ namespace Telegram.Api.Services.FileManager
 
         public string IsoFileName { get; set; }
 
-        public bool Canceled { get; set; }
+        public bool IsCancelled { get; set; }
 
         public bool SuppressMerge { get; set; }
 
@@ -44,6 +44,8 @@ namespace Telegram.Api.Services.FileManager
         public string SourceUri { get; set; }
 
         public string DestFileName { get; set; }
+
+        public Action<DownloadableItem> Action { get; set; }
 
         public System.Action<DownloadableItem> FaultCallback { get; set; }
 

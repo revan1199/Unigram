@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Channels
 {
 	/// <summary>
-	/// RCP method channels.toggleInvites
+	/// RCP method channels.toggleInvites.
+	/// Returns <see cref="Telegram.Api.TL.TLUpdatesBase"/>
 	/// </summary>
 	public partial class TLChannelsToggleInvites : TLObject
 	{
@@ -12,26 +13,24 @@ namespace Telegram.Api.TL.Methods.Channels
 		public Boolean Enabled { get; set; }
 
 		public TLChannelsToggleInvites() { }
-		public TLChannelsToggleInvites(TLBinaryReader from, bool cache = false)
+		public TLChannelsToggleInvites(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.ChannelsToggleInvites; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			Channel = TLFactory.Read<TLInputChannelBase>(from, cache);
+			Channel = TLFactory.Read<TLInputChannelBase>(from);
 			Enabled = from.ReadBoolean();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x49609307);
-			to.WriteObject(Channel, cache);
+			to.WriteObject(Channel);
 			to.Write(Enabled);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

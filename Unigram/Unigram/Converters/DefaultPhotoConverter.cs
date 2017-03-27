@@ -28,6 +28,8 @@ namespace Unigram.Converters
         private static readonly Dictionary<string, WeakReference> _cachedSources = new Dictionary<string, WeakReference>();
         private static readonly Dictionary<string, WeakReference<WriteableBitmap>> _cachedWebPImages = new Dictionary<string, WeakReference<WriteableBitmap>>();
 
+        public static readonly TLBitmapContext BitmapContext = new TLBitmapContext();
+
         private static readonly AnimatedImageSourceRendererFactory _videoFactory = new AnimatedImageSourceRendererFactory();
 
         public bool CheckChatSettings
@@ -38,7 +40,10 @@ namespace Unigram.Converters
 
         public object Convert(object value, Type targetType, object parameter, string language)
         {
-            return Convert(value, parameter);
+            var param = parameter?.ToString();
+            var thumbnail = string.Equals(param, "thumbnail", StringComparison.OrdinalIgnoreCase);
+
+            return Convert(value, thumbnail);
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)
@@ -48,10 +53,10 @@ namespace Unigram.Converters
 
         public static object Convert(object value)
         {
-            return Convert(value, null);
+            return Convert(value, false);
         }
 
-        public static object Convert(object value, object parameter)
+        public static object Convert(object value, bool thumbnail)
         {
             if (value == null)
             {
@@ -63,6 +68,24 @@ namespace Unigram.Converters
             //{
             //    return DefaultPhotoConverter.ReturnOrEnqueueImage(timer, this.CheckChatSettings, encryptedFile, encryptedFile, null);
             //}
+
+            var user = value as TLUser;
+            if (user != null)
+            {
+                return BitmapContext[user];
+            }
+
+            var chat = value as TLChat;
+            if (chat != null)
+            {
+                return BitmapContext[chat];
+            }
+
+            var channel = value as TLChannel;
+            if (channel != null)
+            {
+                return BitmapContext[channel];
+            }
 
             var userProfilePhoto = value as TLUserProfilePhoto;
             if (userProfilePhoto != null)
@@ -170,23 +193,31 @@ namespace Unigram.Converters
             var photo = value as TLPhoto;
             if (photo != null)
             {
-                double num = 400;
-                double num2;
-                if (double.TryParse((string)parameter, out num2))
+                return BitmapContext[photo];
+
+                //double num = 400;
+                //double num2;
+                //if (double.TryParse((string)parameter, out num2))
+                //{
+                //    num = num2;
+                //}
+
+                //TLPhotoSize photoSize = null;
+                //foreach (var current in photo.Sizes.OfType<TLPhotoSize>())
+                //{
+                //    if (photoSize == null || Math.Abs(num - photoSize.W) > Math.Abs(num - current.W))
+                //    {
+                //        photoSize = current;
+                //    }
+                //}
+
+                var photoSizeBase = photo.Full;
+                if (thumbnail)
                 {
-                    num = num2;
+                    photoSizeBase = photo.Thumb;
                 }
 
-                TLPhotoSize photoSize = null;
-                foreach (var current in photo.Sizes.OfType<TLPhotoSize>())
-                {
-                    if (photoSize == null || Math.Abs(num - photoSize.W) > Math.Abs(num - current.W))
-                    {
-                        photoSize = current;
-                    }
-                }
-
-                if (photoSize != null)
+                if (photoSizeBase != null)
                 {
                     //if (!string.IsNullOrEmpty(photoSize.TempUrl))
                     //{
@@ -197,10 +228,22 @@ namespace Unigram.Converters
                     //    return photoSize.TempUrl;
                     //}
 
-                    var fileLocation = photoSize.Location as TLFileLocation;
-                    if (fileLocation != null /*&& (photoMedia == null || !photoMedia.IsCanceled)*/)
+                    var photoSize = photoSizeBase as TLPhotoSize;
+                    if (photoSize != null)
                     {
-                        return ReturnOrEnqueueImage(false, fileLocation, photo, photoSize.Size, photoMedia);
+                        var fileLocation = photoSize.Location as TLFileLocation;
+                        if (fileLocation != null /*&& (photoMedia == null || !photoMedia.IsCanceled)*/)
+                        {
+                            return ReturnOrEnqueueImage(false, fileLocation, photo, photoSize.Size, photoMedia);
+                        }
+                    }
+
+                    var photoCachedSize = photoSizeBase as TLPhotoCachedSize;
+                    if (photoCachedSize != null)
+                    {
+                        var bitmap = new BitmapImage();
+                        bitmap.SetSource(photoCachedSize.Bytes);
+                        return bitmap;
                     }
                 }
             }
@@ -292,16 +335,21 @@ namespace Unigram.Converters
             {
                 if (TLMessage.IsSticker(tLDocument3))
                 {
-                    if (parameter != null && string.Equals(parameter.ToString(), "ignoreStickers", StringComparison.OrdinalIgnoreCase))
+                    //if (parameter != null && string.Equals(parameter.ToString(), "ignoreStickers", StringComparison.OrdinalIgnoreCase))
+                    //{
+                    //    return null;
+                    //}
+
+                    if (thumbnail)
                     {
-                        return null;
+                        return ReturnOrEnqueueStickerThumbnail(tLDocument3, null);
                     }
 
-                    return DefaultPhotoConverter.ReturnOrEnqueueSticker(tLDocument3, null);
+                    return ReturnOrEnqueueSticker(tLDocument3, null);
                 }
                 else if (TLMessage.IsGif(tLDocument3))
                 {
-                    return ReturnOrEnqueueGif(tLDocument3, null);
+                    return ReturnOrEnqueueGif(tLDocument3, thumbnail);
                 }
                 else
                 {
@@ -319,7 +367,7 @@ namespace Unigram.Converters
                     if (photoCachedSize != null)
                     {
                         var bitmap = new BitmapImage();
-                        bitmap.SetByteSource(photoCachedSize.Bytes);
+                        bitmap.SetSource(photoCachedSize.Bytes);
                         return bitmap;
                     }
                 }
@@ -355,7 +403,7 @@ namespace Unigram.Converters
             var webpageMedia = value as TLMessageMediaWebPage;
             if (webpageMedia != null)
             {
-                value = webpageMedia.Webpage;
+                value = webpageMedia.WebPage;
             }
 
             //var decryptedWebpageMedia = value as TLDecryptedMessageMediaWebPage;
@@ -370,22 +418,28 @@ namespace Unigram.Converters
                 var tLPhoto2 = webpage.Photo as TLPhoto;
                 if (tLPhoto2 != null)
                 {
-                    double num3 = 400;
-                    double num4;
-                    if (double.TryParse((string)parameter, out num4))
+                    //double num3 = 400;
+                    //if (double.TryParse((string)parameter, out double num4))
+                    //{
+                    //    num3 = num4;
+                    //}
+
+                    //TLPhotoSize photoSize = null;
+                    //foreach (var current in tLPhoto2.Sizes.OfType<TLPhotoSize>())
+                    //{
+                    //    if (photoSize == null || Math.Abs(num3 - (double)photoSize.W) > Math.Abs(num3 - (double)current.W))
+                    //    {
+                    //        photoSize = current;
+                    //    }
+                    //}
+
+                    var photoSizeBase = tLPhoto2.Full;
+                    if (thumbnail)
                     {
-                        num3 = num4;
+                        photoSizeBase = tLPhoto2.Thumb;
                     }
 
-                    TLPhotoSize photoSize = null;
-                    foreach (var current in tLPhoto2.Sizes.OfType<TLPhotoSize>())
-                    {
-                        if (photoSize == null || Math.Abs(num3 - (double)photoSize.W) > Math.Abs(num3 - (double)current.W))
-                        {
-                            photoSize = current;
-                        }
-                    }
-
+                    var photoSize = photoSizeBase as TLPhotoSize;
                     if (photoSize != null)
                     {
                         var fileLocation = photoSize.Location as TLFileLocation;
@@ -404,9 +458,7 @@ namespace Unigram.Converters
         {
             try
             {
-                WeakReference<WriteableBitmap> weakReference;
-                WriteableBitmap writeableBitmap;
-                if (_cachedWebPImages.TryGetValue(cacheKey, out weakReference) && weakReference.TryGetTarget(out writeableBitmap))
+                if (_cachedWebPImages.TryGetValue(cacheKey, out WeakReference<WriteableBitmap> weakReference) && weakReference.TryGetTarget(out WriteableBitmap writeableBitmap))
                 {
                     return writeableBitmap;
                 }
@@ -415,8 +467,6 @@ namespace Unigram.Converters
                 {
                     var result = WebPImage.DecodeFromByteArray(buffer);
                     _cachedWebPImages[cacheKey] = new WeakReference<WriteableBitmap>(result);
-
-                    GC.Collect();
 
                     return result;
                 }
@@ -437,10 +487,10 @@ namespace Unigram.Converters
         {
             var fileName = string.Format("{0}_{1}_{2}.jpg", location.VolumeId, location.LocalId, location.Secret);
 
-            if (File.Exists(Path.Combine(ApplicationData.Current.LocalFolder.Path, fileName)))
+            if (File.Exists(FileUtils.GetTempFileName(fileName)))
             {
                 var bitmap = new BitmapImage();
-                bitmap.SetUriSource(new Uri("ms-appdata:///local/" + fileName));
+                bitmap.SetSource(FileUtils.GetTempFileUri(fileName));
                 return bitmap;
             }
 
@@ -516,11 +566,32 @@ namespace Unigram.Converters
         //    return null;
         //}
 
-        public static ImageSource ReturnOrEnqueueGif(TLDocument document, TLObject sticker)
+        public static ImageSource ReturnOrEnqueueGif(TLDocument document, bool thumbnail)
         {
             if (document == null)
             {
                 return null;
+            }
+
+            if (thumbnail)
+            {
+                var photoSize = document.Thumb as TLPhotoSize;
+                if (photoSize != null)
+                {
+                    var fileLocation = photoSize.Location as TLFileLocation;
+                    if (fileLocation != null)
+                    {
+                        return ReturnOrEnqueueImage(false, fileLocation, document, photoSize.Size, null);
+                    }
+                }
+
+                var photoCachedSize = document.Thumb as TLPhotoCachedSize;
+                if (photoCachedSize != null)
+                {
+                    var bitmap = new BitmapImage();
+                    bitmap.SetSource(photoCachedSize.Bytes);
+                    return bitmap;
+                }
             }
 
             var width = 0;
@@ -535,24 +606,16 @@ namespace Unigram.Converters
 
             var filename = document.GetFileName();
 
-            if (!File.Exists(Path.Combine(ApplicationData.Current.LocalFolder.Path, filename)))
+            if (!File.Exists(FileUtils.GetTempFileName(filename)))
             {
-                TLObject owner = document;
-                if (sticker != null)
-                {
-                    owner = sticker;
-                }
-
-                Debug.WriteLine("Download");
-
                 var renderer = _videoFactory.CreateRenderer(320, 320);
-                var manager = UnigramContainer.Instance.ResolverType<IDownloadDocumentFileManager>();
+                var manager = UnigramContainer.Current.ResolveType<IDownloadDocumentFileManager>();
                 Execute.BeginOnThreadPool(async () =>
                 {
-                    await manager.DownloadFileAsync(document.FileName, document.DCId, document.ToInputFileLocation(), document.Size);
+                    await manager.DownloadFileAsync(filename, document.DCId, document.ToInputFileLocation(), document.Size);
                     Execute.BeginOnUIThread(async () =>
                     {
-                        await renderer.SetSourceAsync(new Uri(Path.Combine("ms-appdata:///local", filename)));
+                            await renderer.SetSourceAsync(FileUtils.GetTempFileUri(filename));
                     });
                 });
 
@@ -588,7 +651,7 @@ namespace Unigram.Converters
                 var renderer = _videoFactory.CreateRenderer(320, 320);
                 Execute.BeginOnUIThread(async () =>
                 {
-                    await renderer.SetSourceAsync(new Uri(Path.Combine("ms-appdata:///local", filename)));
+                    await renderer.SetSourceAsync(FileUtils.GetTempFileUri(filename));
                 });
                 return renderer.ImageSource;
             }
@@ -668,25 +731,25 @@ namespace Unigram.Converters
         {
             string fileName = string.Format("{0}_{1}_{2}.jpg", location.VolumeId, location.LocalId, location.Secret);
 
-            if (File.Exists(Path.Combine(ApplicationData.Current.LocalFolder.Path, fileName)))
+            if (File.Exists(FileUtils.GetTempFileName(fileName)))
             {
                 var bitmap = new BitmapImage();
-                bitmap.SetUriSource(new Uri("ms-appdata:///local/" + fileName));
+                bitmap.SetSource(FileUtils.GetTempFileUri(fileName));
                 return bitmap;
             }
 
             if (fileSize >= 0)
             {
-                var manager = UnigramContainer.Instance.ResolverType<IDownloadFileManager>();
+                var manager = UnigramContainer.Current.ResolveType<IDownloadFileManager>();
                 var bitmap = new BitmapImage();
 
                 //Execute.BeginOnThreadPool(() => manager.DownloadFile(location, owner, fileSize));
                 Execute.BeginOnThreadPool(async () =>
                 {
-                    await manager.DownloadFileAsync(location, fileSize);
+                    await manager.DownloadFileAsync(location, fileSize).AsTask(mediaPhoto?.Download());
                     Execute.BeginOnUIThread(() =>
                     {
-                        bitmap.SetUriSource(new Uri("ms-appdata:///local/" + fileName));
+                        bitmap.SetSource(FileUtils.GetTempFileUri(fileName));
                     });
                 });
 
@@ -766,16 +829,15 @@ namespace Unigram.Converters
         {
             var fileName = string.Format("{0}_{1}_{2}.jpg", location.VolumeId, location.LocalId, location.Secret);
 
-            WeakReference weakReference;
-            if (_cachedSources.TryGetValue(fileName, out weakReference) && weakReference.IsAlive)
+            if (_cachedSources.TryGetValue(fileName, out WeakReference weakReference) && weakReference.IsAlive)
             {
                 return weakReference.Target as BitmapSource;
             }
 
-            if (File.Exists(Path.Combine(ApplicationData.Current.LocalFolder.Path, fileName)))
+            if (File.Exists(FileUtils.GetTempFileName(fileName)))
             {
                 var bitmap = new BitmapImage();
-                bitmap.SetUriSource(new Uri("ms-appdata:///local/" + fileName));
+                bitmap.SetSource(FileUtils.GetTempFileUri(fileName));
                 _cachedSources[fileName] = new WeakReference(bitmap);
 
                 return bitmap;
@@ -783,7 +845,7 @@ namespace Unigram.Converters
 
             if (fileSize >= 0)
             {
-                var manager = UnigramContainer.Instance.ResolverType<IDownloadFileManager>();
+                var manager = UnigramContainer.Current.ResolveType<IDownloadFileManager>();
                 var bitmap = new BitmapImage();
                 _cachedSources[fileName] = new WeakReference(bitmap);
 
@@ -792,7 +854,7 @@ namespace Unigram.Converters
                     await manager.DownloadFileAsync(location, fileSize);
                     Execute.BeginOnUIThread(() =>
                     {
-                        bitmap.SetUriSource(new Uri("ms-appdata:///local/" + fileName));
+                        bitmap.SetSource(FileUtils.GetTempFileUri(fileName));
                     });
                 });
 
@@ -871,27 +933,25 @@ namespace Unigram.Converters
         {
             string filename = string.Format("{0}_{1}_{2}.jpg", location.VolumeId, location.LocalId, location.Secret);
 
-            if (File.Exists(Path.Combine(ApplicationData.Current.LocalFolder.Path, filename)) && bitmap.IsSet == false)
+            if (File.Exists(FileUtils.GetTempFileName(filename)) && bitmap.IsSet == false)
             {
-                byte[] array = File.ReadAllBytes(Path.Combine(ApplicationData.Current.LocalFolder.Path, filename));
+                byte[] array = File.ReadAllBytes(FileUtils.GetTempFileName(filename));
 
                 return DecodeWebPImage(filename, array, () =>
                 {
-                    File.Delete(Path.Combine(ApplicationData.Current.LocalFolder.Path, filename));
+                    File.Delete(FileUtils.GetTempFileName(filename));
                 });
             }
 
             if (photoSize != null)
             {
-                Debug.WriteLine("Download");
-
-                var manager = UnigramContainer.Instance.ResolverType<IDownloadFileManager>();
+                var manager = UnigramContainer.Current.ResolveType<IDownloadFileManager>();
                 Execute.BeginOnThreadPool(async () =>
                 {
                     await manager.DownloadFileAsync(location, photoSize.Size);
                     if (bitmap.IsSet == false)
                     {
-                        var buffer = WebPImage.Encode(File.ReadAllBytes(Path.Combine(ApplicationData.Current.LocalFolder.Path, filename)));
+                        var buffer = WebPImage.Encode(File.ReadAllBytes(FileUtils.GetTempFileName(filename)));
                         Execute.BeginOnUIThread(() =>
                         {
                             bitmap.SetStream(buffer);
@@ -914,7 +974,7 @@ namespace Unigram.Converters
 
             var filename = document.GetFileName();
 
-            if (!File.Exists(Path.Combine(ApplicationData.Current.LocalFolder.Path, filename)))
+            if (!File.Exists(FileUtils.GetTempFileName(filename)))
             {
                 TLObject owner = document;
                 if (sticker != null)
@@ -922,14 +982,12 @@ namespace Unigram.Converters
                     owner = sticker;
                 }
 
-                Debug.WriteLine("Download");
-
                 var bitmap = new StickerBitmapSource();
-                var manager = UnigramContainer.Instance.ResolverType<IDownloadDocumentFileManager>();
+                var manager = UnigramContainer.Current.ResolveType<IDownloadDocumentFileManager>();
                 Execute.BeginOnThreadPool(async () =>
                 {
-                    await manager.DownloadFileAsync(document.FileName, document.DCId, document.ToInputFileLocation(), document.Size);
-                    var buffer = WebPImage.Encode(File.ReadAllBytes(Path.Combine(ApplicationData.Current.LocalFolder.Path, filename)));
+                    await manager.DownloadFileAsync(filename, document.DCId, document.ToInputFileLocation(), document.Size);
+                    var buffer = WebPImage.Encode(File.ReadAllBytes(FileUtils.GetTempFileName(filename)));
                     Execute.BeginOnUIThread(() =>
                     {
                         bitmap.SetStream(buffer);
@@ -963,11 +1021,109 @@ namespace Unigram.Converters
             }
             else if (document.Size > 0 && document.Size < 262144)
             {
-                var array = File.ReadAllBytes(Path.Combine(ApplicationData.Current.LocalFolder.Path, filename));
+                var array = File.ReadAllBytes(FileUtils.GetTempFileName(filename));
                 return DecodeWebPImage(filename, array, delegate
                 {
-                    File.Delete(Path.Combine(ApplicationData.Current.LocalFolder.Path, filename));
+                    File.Delete(FileUtils.GetTempFileName(filename));
                 });
+            }
+
+            return null;
+
+            //if (document == null)
+            //{
+            //    return null;
+            //}
+            //string documentLocalFileName = document.GetFileName();
+            //using (IsolatedStorageFile userStoreForApplication = IsolatedStorageFile.GetUserStoreForApplication())
+            //{
+            //    if (!userStoreForApplication.FileExists(documentLocalFileName))
+            //    {
+            //        TLObject owner = document;
+            //        if (sticker != null)
+            //        {
+            //            owner = sticker;
+            //        }
+            //        UnigramContainer.Instance.ResolverType<IDownloadDocumentFileManager>().DownloadFileAsync(document.FileName, document.DCId, document.ToInputFileLocation(), owner, document.Size, delegate (double progress)
+            //        {
+            //        }, null);
+
+            //        UnigramContainer.Instance.ResolverType<IDownloadDocumentFileManager>()
+            //        TLPhotoCachedSize tLPhotoCachedSize = document.Thumb as TLPhotoCachedSize;
+            //        if (tLPhotoCachedSize != null)
+            //        {
+            //            string cacheKey = "cached" + document.GetFileName();
+            //            byte[] data = tLPhotoCachedSize.Bytes.Data;
+            //            ImageSource result;
+            //            if (data == null)
+            //            {
+            //                result = null;
+            //                return result;
+            //            }
+            //            result = DefaultPhotoConverter.DecodeWebPImage(cacheKey, data, delegate
+            //            {
+            //            });
+            //            return result;
+            //        }
+            //        else
+            //        {
+            //            var photoSize = document.Thumb as TLPhotoSize;
+            //            if (photoSize != null)
+            //            {
+            //                var fileLocation = photoSize.Location as TLFileLocation;
+            //                if (fileLocation != null)
+            //                {
+            //                    return DefaultPhotoConverter.ReturnOrEnqueueStickerPreview(fileLocation, sticker, photoSize.Size);
+            //                }
+            //            }
+            //        }
+            //    }
+            //    else if (document.DocumentSize > 0 && document.DocumentSize < 262144)
+            //    {
+            //        byte[] array;
+            //        using (IsolatedStorageFileStream isolatedStorageFileStream = userStoreForApplication.OpenFile(documentLocalFileName, 3))
+            //        {
+            //            array = new byte[isolatedStorageFileStream.get_Length()];
+            //            isolatedStorageFileStream.Read(array, 0, array.Length);
+            //        }
+            //        ImageSource result = DefaultPhotoConverter.DecodeWebPImage(documentLocalFileName, array, delegate
+            //        {
+            //            using (IsolatedStorageFile userStoreForApplication2 = IsolatedStorageFile.GetUserStoreForApplication())
+            //            {
+            //                userStoreForApplication2.DeleteFile(documentLocalFileName);
+            //            }
+            //        });
+            //        return result;
+            //    }
+            //}
+            //return null;
+        }
+        public static ImageSource ReturnOrEnqueueStickerThumbnail(TLDocument document, TLObject sticker)
+        {
+            var bitmap = new StickerBitmapSource();
+            var cachedSize = document.Thumb as TLPhotoCachedSize;
+            if (cachedSize != null)
+            {
+                var cacheKey = "cached" + document.GetFileName();
+                var data = cachedSize.Bytes;
+                if (data == null)
+                {
+                    return null;
+                }
+
+                return DecodeWebPImage(cacheKey, data, () => { });
+            }
+            else
+            {
+                var photoSize = document.Thumb as TLPhotoSize;
+                if (photoSize != null)
+                {
+                    var location = photoSize.Location as TLFileLocation;
+                    if (location != null)
+                    {
+                        return EnqueueStickerPreview(location, sticker, photoSize, bitmap);
+                    }
+                }
             }
 
             return null;

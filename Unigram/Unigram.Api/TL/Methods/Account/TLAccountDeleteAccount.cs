@@ -4,31 +4,30 @@ using System;
 namespace Telegram.Api.TL.Methods.Account
 {
 	/// <summary>
-	/// RCP method account.deleteAccount
+	/// RCP method account.deleteAccount.
+	/// Returns <see cref="Telegram.Api.TL.TLBoolBase"/>
 	/// </summary>
 	public partial class TLAccountDeleteAccount : TLObject
 	{
 		public String Reason { get; set; }
 
 		public TLAccountDeleteAccount() { }
-		public TLAccountDeleteAccount(TLBinaryReader from, bool cache = false)
+		public TLAccountDeleteAccount(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.AccountDeleteAccount; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Reason = from.ReadString();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x418D4E0B);
 			to.Write(Reason);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

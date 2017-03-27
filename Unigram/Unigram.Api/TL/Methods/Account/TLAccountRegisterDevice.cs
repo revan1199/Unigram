@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Account
 {
 	/// <summary>
-	/// RCP method account.registerDevice
+	/// RCP method account.registerDevice.
+	/// Returns <see cref="Telegram.Api.TL.TLBoolBase"/>
 	/// </summary>
 	public partial class TLAccountRegisterDevice : TLObject
 	{
@@ -12,26 +13,24 @@ namespace Telegram.Api.TL.Methods.Account
 		public String Token { get; set; }
 
 		public TLAccountRegisterDevice() { }
-		public TLAccountRegisterDevice(TLBinaryReader from, bool cache = false)
+		public TLAccountRegisterDevice(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.AccountRegisterDevice; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			TokenType = from.ReadInt32();
 			Token = from.ReadString();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x637EA878);
 			to.Write(TokenType);
 			to.Write(Token);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

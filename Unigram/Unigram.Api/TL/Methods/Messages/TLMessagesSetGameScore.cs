@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Messages
 {
 	/// <summary>
-	/// RCP method messages.setGameScore
+	/// RCP method messages.setGameScore.
+	/// Returns <see cref="Telegram.Api.TL.TLUpdatesBase"/>
 	/// </summary>
 	public partial class TLMessagesSetGameScore : TLObject
 	{
@@ -12,9 +13,11 @@ namespace Telegram.Api.TL.Methods.Messages
 		public enum Flag : Int32
 		{
 			EditMessage = (1 << 0),
+			Force = (1 << 1),
 		}
 
 		public bool IsEditMessage { get { return Flags.HasFlag(Flag.EditMessage); } set { Flags = value ? (Flags | Flag.EditMessage) : (Flags & ~Flag.EditMessage); } }
+		public bool IsForce { get { return Flags.HasFlag(Flag.Force); } set { Flags = value ? (Flags | Flag.Force) : (Flags & ~Flag.Force); } }
 
 		public Flag Flags { get; set; }
 		public TLInputPeerBase Peer { get; set; }
@@ -23,32 +26,30 @@ namespace Telegram.Api.TL.Methods.Messages
 		public Int32 Score { get; set; }
 
 		public TLMessagesSetGameScore() { }
-		public TLMessagesSetGameScore(TLBinaryReader from, bool cache = false)
+		public TLMessagesSetGameScore(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesSetGameScore; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
-			Peer = TLFactory.Read<TLInputPeerBase>(from, cache);
+			Peer = TLFactory.Read<TLInputPeerBase>(from);
 			Id = from.ReadInt32();
-			UserId = TLFactory.Read<TLInputUserBase>(from, cache);
+			UserId = TLFactory.Read<TLInputUserBase>(from);
 			Score = from.ReadInt32();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x8EF8ECC0);
 			to.Write((Int32)Flags);
-			to.WriteObject(Peer, cache);
+			to.WriteObject(Peer);
 			to.Write(Id);
-			to.WriteObject(UserId, cache);
+			to.WriteObject(UserId);
 			to.Write(Score);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

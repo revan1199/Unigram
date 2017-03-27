@@ -6,6 +6,7 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading;
 using System.Threading.Tasks;
 using Telegram.Api.Aggregator;
+using Telegram.Api.Extensions;
 using Telegram.Api.Helpers;
 using Telegram.Api.Services.FileManager.EventArgs;
 using Telegram.Api.TL;
@@ -17,7 +18,7 @@ namespace Telegram.Api.Services.FileManager
     {
         IAsyncOperationWithProgress<DownloadableItem, double> DownloadFileAsync(TLFileLocation file, int fileSize);
 
-        void DownloadFile(TLFileLocation file, TLObject owner, int fileSize);
+        void DownloadFile(TLFileLocation file, int fileSize, Action<DownloadableItem> callback);
 
         void CancelDownloadFile(TLObject owner);
     }
@@ -61,7 +62,7 @@ namespace Telegram.Api.Services.FileManager
                 for (var i = 0; i < _items.Count; i++)
                 {
                     var item = _items[i];
-                    if (item.Canceled)
+                    if (item.IsCancelled)
                     {
                         _items.RemoveAt(i--);
                         try
@@ -100,7 +101,7 @@ namespace Telegram.Api.Services.FileManager
             {
                 lock (_itemsSyncRoot)
                 {
-                    part.ParentItem.Canceled = true;
+                    part.ParentItem.IsCancelled = true;
                     part.Status = PartStatus.Processed;
                     _items.Remove(part.ParentItem);
                 }
@@ -114,7 +115,7 @@ namespace Telegram.Api.Services.FileManager
                 {
                     lock (_itemsSyncRoot)
                     {
-                        part.ParentItem.Canceled = true;
+                        part.ParentItem.IsCancelled = true;
                         part.Status = PartStatus.Processed;
                         _items.Remove(part.ParentItem);
                     }
@@ -148,7 +149,7 @@ namespace Telegram.Api.Services.FileManager
                     }
                 }
 
-                isCanceled = part.ParentItem.Canceled;
+                isCanceled = part.ParentItem.IsCancelled;
 
                 isComplete = part.ParentItem.Parts.All(x => x.Status == PartStatus.Processed);
                 if (!isComplete)
@@ -178,7 +179,7 @@ namespace Telegram.Api.Services.FileManager
                         part.ParentItem.Location.LocalId, 
                         part.ParentItem.Location.Secret);
 
-                    FileUtils.WriteBytes(fileName, bytes);
+                    FileUtils.WriteTemporaryBites(fileName, bytes);
 
                     if (part.ParentItem.Callback != null)
                     {
@@ -187,6 +188,7 @@ namespace Telegram.Api.Services.FileManager
                     }
                     else
                     {
+                        part.ParentItem.Action?.Invoke(part.ParentItem);
                         Execute.BeginOnThreadPool(() => _eventAggregator.Publish(part.ParentItem));
                     }
                 }
@@ -262,10 +264,14 @@ namespace Telegram.Api.Services.FileManager
                     bool addFile = true;
                     foreach (var item in _items)
                     {
-                        if (item.Location.VolumeId == file.VolumeId
-                            && item.Location.LocalId == file.LocalId)
+                        if (item.Location.VolumeId == file.VolumeId &&
+                            item.Location.LocalId == file.LocalId)
                         {
+                            downloadableItem.Callback = item.Callback;
+                            downloadableItem.Progress = item.Progress;
                             addFile = false;
+
+                            Debug.WriteLine("Already downloading document");
                             break;
                         }
                     }
@@ -282,20 +288,18 @@ namespace Telegram.Api.Services.FileManager
             });
         }
 
-        public void DownloadFile(TLFileLocation file, TLObject owner, int fileSize)
+        public void DownloadFile(TLFileLocation file, int fileSize, Action<DownloadableItem> callback)
         {
-            //return;
-
-            var downloadableItem = GetDownloadableItem(file, owner, fileSize);
+            var downloadableItem = GetDownloadableItem(file, null, fileSize);
+            downloadableItem.Action = callback;
 
             lock (_itemsSyncRoot)
             {
                 bool addFile = true;
                 foreach (var item in _items)
                 {
-                    if (item.Location.VolumeId == file.VolumeId
-                        && item.Location.LocalId == file.LocalId
-                        && item.Owner == owner)
+                    if (item.Location.VolumeId == file.VolumeId &&
+                        item.Location.LocalId == file.LocalId)
                     {
                         addFile = false;
                         break;
@@ -335,7 +339,7 @@ namespace Telegram.Api.Services.FileManager
 
         private List<DownloadablePart> GetItemParts(int size, DownloadableItem item)
         {
-            var chunkSize = Constants.DownloadedChunkSize;
+            var chunkSize = Constants.DownloadChunkSize;
             var parts = new List<DownloadablePart>();
             var partsCount = size / chunkSize + 1;
             for (var i = 0; i < partsCount; i++)
@@ -355,7 +359,7 @@ namespace Telegram.Api.Services.FileManager
 
                 foreach (var item in items)
                 {
-                    item.Canceled = true;
+                    item.IsCancelled = true;
                 }
             }
         }

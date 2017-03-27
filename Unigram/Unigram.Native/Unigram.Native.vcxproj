@@ -43,35 +43,35 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -231,9 +231,11 @@
     <ClInclude Include="BufferLock.h" />
     <ClInclude Include="ByteStreamHandler.h" />
     <ClInclude Include="FinalizeAsyncOperation.h" />
+    <ClInclude Include="Helpers\DirectXEx.h" />
     <ClInclude Include="MediaFoundationExtensions.h" />
     <ClInclude Include="MediaSink.h" />
     <ClInclude Include="MediaSource.h" />
+    <ClInclude Include="NativeUtils.h" />
     <ClInclude Include="Opus\OpusCodec.h" />
     <ClInclude Include="Opus\OpusByteStreamHandler.h" />
     <ClInclude Include="Opus\OpusInputByteStream.h" />
@@ -241,6 +243,7 @@
     <ClInclude Include="Opus\OpusMediaSource.h" />
     <ClInclude Include="Opus\OpusMediaType.h" />
     <ClInclude Include="Opus\OpusOutputByteStream.h" />
+    <ClInclude Include="PlaceholderImageSource.h" />
     <ClInclude Include="WebP\DemuxerWrapper.h" />
     <ClInclude Include="GIF\GIFByteStreamHandler.h" />
     <ClInclude Include="GIF\GIFMediaSource.h" />
@@ -266,6 +269,7 @@
     <ClCompile Include="MediaFoundationExtensions.cpp" />
     <ClCompile Include="MediaSink.cpp" />
     <ClCompile Include="MediaSource.cpp" />
+    <ClCompile Include="NativeUtils.cpp" />
     <ClCompile Include="Opus\OpusCodec.cpp" />
     <ClCompile Include="Opus\OpusByteStreamHandler.cpp" />
     <ClCompile Include="Opus\OpusInputByteStream.cpp" />
@@ -283,6 +287,7 @@
     <ClCompile Include="AnimatedImageSource\AnimatedImageSourceRenderer.cpp" />
     <ClCompile Include="AnimatedImageSource\AnimatedImageSourceRendererFactory.cpp" />
     <ClCompile Include="AnimatedImageSource\FramesCacheStore.cpp" />
+    <ClCompile Include="PlaceholderImageSource.cpp" />
     <ClCompile Include="WebP\WebPFrame.cpp" />
     <ClCompile Include="WebP\WebPImage.cpp" />
   </ItemGroup>

@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Messages
 {
 	/// <summary>
-	/// RCP method messages.saveGif
+	/// RCP method messages.saveGif.
+	/// Returns <see cref="Telegram.Api.TL.TLBoolBase"/>
 	/// </summary>
 	public partial class TLMessagesSaveGif : TLObject
 	{
@@ -12,26 +13,24 @@ namespace Telegram.Api.TL.Methods.Messages
 		public Boolean Unsave { get; set; }
 
 		public TLMessagesSaveGif() { }
-		public TLMessagesSaveGif(TLBinaryReader from, bool cache = false)
+		public TLMessagesSaveGif(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesSaveGif; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			Id = TLFactory.Read<TLInputDocumentBase>(from, cache);
+			Id = TLFactory.Read<TLInputDocumentBase>(from);
 			Unsave = from.ReadBoolean();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x327A30CB);
-			to.WriteObject(Id, cache);
+			to.WriteObject(Id);
 			to.Write(Unsave);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

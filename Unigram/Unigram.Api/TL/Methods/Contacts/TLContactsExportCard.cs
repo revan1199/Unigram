@@ -4,27 +4,26 @@ using System;
 namespace Telegram.Api.TL.Methods.Contacts
 {
 	/// <summary>
-	/// RCP method contacts.exportCard
+	/// RCP method contacts.exportCard.
+	/// Returns <see cref="Telegram.Api.TL.TLVector<TLint>"/>
 	/// </summary>
 	public partial class TLContactsExportCard : TLObject
 	{
 		public TLContactsExportCard() { }
-		public TLContactsExportCard(TLBinaryReader from, bool cache = false)
+		public TLContactsExportCard(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.ContactsExportCard; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x84E53737);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

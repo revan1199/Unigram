@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Auth
 {
 	/// <summary>
-	/// RCP method auth.sendInvites
+	/// RCP method auth.sendInvites.
+	/// Returns <see cref="Telegram.Api.TL.TLBoolBase"/>
 	/// </summary>
 	public partial class TLAuthSendInvites : TLObject
 	{
@@ -12,26 +13,24 @@ namespace Telegram.Api.TL.Methods.Auth
 		public String Message { get; set; }
 
 		public TLAuthSendInvites() { }
-		public TLAuthSendInvites(TLBinaryReader from, bool cache = false)
+		public TLAuthSendInvites(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.AuthSendInvites; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			PhoneNumbers = TLFactory.Read<TLVector<String>>(from, cache);
+			PhoneNumbers = TLFactory.Read<TLVector<String>>(from);
 			Message = from.ReadString();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x771C1D97);
-			to.WriteObject(PhoneNumbers, cache);
+			to.WriteObject(PhoneNumbers);
 			to.Write(Message);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

@@ -4,31 +4,30 @@ using System;
 namespace Telegram.Api.TL.Methods.Auth
 {
 	/// <summary>
-	/// RCP method auth.exportAuthorization
+	/// RCP method auth.exportAuthorization.
+	/// Returns <see cref="Telegram.Api.TL.TLAuthExportedAuthorization"/>
 	/// </summary>
 	public partial class TLAuthExportAuthorization : TLObject
 	{
 		public Int32 DCId { get; set; }
 
 		public TLAuthExportAuthorization() { }
-		public TLAuthExportAuthorization(TLBinaryReader from, bool cache = false)
+		public TLAuthExportAuthorization(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.AuthExportAuthorization; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			DCId = from.ReadInt32();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xE5BFFFCD);
 			to.Write(DCId);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

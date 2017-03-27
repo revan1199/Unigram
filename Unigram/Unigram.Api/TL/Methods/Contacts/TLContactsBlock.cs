@@ -4,31 +4,30 @@ using System;
 namespace Telegram.Api.TL.Methods.Contacts
 {
 	/// <summary>
-	/// RCP method contacts.block
+	/// RCP method contacts.block.
+	/// Returns <see cref="Telegram.Api.TL.TLBoolBase"/>
 	/// </summary>
 	public partial class TLContactsBlock : TLObject
 	{
 		public TLInputUserBase Id { get; set; }
 
 		public TLContactsBlock() { }
-		public TLContactsBlock(TLBinaryReader from, bool cache = false)
+		public TLContactsBlock(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.ContactsBlock; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			Id = TLFactory.Read<TLInputUserBase>(from, cache);
-			if (cache) ReadFromCache(from);
+			Id = TLFactory.Read<TLInputUserBase>(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x332B49FC);
-			to.WriteObject(Id, cache);
-			if (cache) WriteToCache(to);
+			to.WriteObject(Id);
 		}
 	}
 }

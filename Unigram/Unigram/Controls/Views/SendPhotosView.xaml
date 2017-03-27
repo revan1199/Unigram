@@ -10,10 +10,10 @@
     mc:Ignorable="d"
     d:DesignHeight="300"
     d:DesignWidth="400"
-    VerticalAlignment="Center"
-    RequestedTheme="Dark">
+    HorizontalAlignment="Stretch"
+    VerticalAlignment="Stretch">
 
-    <Grid Background="Black">
+    <Grid Background="Black" RequestedTheme="Dark">
         <VisualStateManager.VisualStateGroups>
             <VisualStateGroup>
                 <VisualState>
@@ -50,7 +50,9 @@
                     Grid.ColumnSpan="2">
             <FlipView.ItemTemplate>
                 <DataTemplate>
-                    <Image Source="{Binding Preview}"/>
+                    <Viewbox HorizontalAlignment="Center" VerticalAlignment="Center" StretchDirection="DownOnly">
+                        <Image Source="{Binding Preview}" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="None"/>
+                    </Viewbox>
                 </DataTemplate>
             </FlipView.ItemTemplate>
         </FlipView>
@@ -102,13 +104,13 @@
                 <ColumnDefinition/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBox x:Name="CaptionInput" KeyDown="TextBox_KeyDown" Text="{x:Bind SelectedItem.Caption, Mode=TwoWay}" InputScope="Chat" PlaceholderText="Add a caption..." Margin="12,8"/>
+            <TextBox x:Name="CaptionInput" KeyDown="TextBox_KeyDown" Text="{x:Bind SelectedItem.Caption, Mode=TwoWay}" MaxLength="200" InputScope="Chat" PlaceholderText="Add a caption..." Margin="12,8"/>
             <controls:GlyphButton x:Name="Remove" Click="Remove_Click" Glyph="&#xE107;" Grid.Column="1"/>
         </Grid>
 
         <CommandBar x:Name="Commands" Background="#FF1F1F1F" Grid.Row="3">
-            <AppBarButton Click="Accept_Click" Icon="Accept"/>
-            <AppBarButton Click="Cancel_Click" Icon="Cancel"/>
+            <AppBarButton Click="Accept_Click" Icon="Send" Content="Send" />
+            <AppBarButton Click="Cancel_Click" Icon="Cancel" Content="Cancel"/>
         </CommandBar>
     </Grid>
 </controls:ContentDialogBase>

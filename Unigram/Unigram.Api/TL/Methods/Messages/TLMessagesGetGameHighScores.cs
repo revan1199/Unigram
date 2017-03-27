@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Messages
 {
 	/// <summary>
-	/// RCP method messages.getGameHighScores
+	/// RCP method messages.getGameHighScores.
+	/// Returns <see cref="Telegram.Api.TL.TLMessagesHighScores"/>
 	/// </summary>
 	public partial class TLMessagesGetGameHighScores : TLObject
 	{
@@ -13,28 +14,26 @@ namespace Telegram.Api.TL.Methods.Messages
 		public TLInputUserBase UserId { get; set; }
 
 		public TLMessagesGetGameHighScores() { }
-		public TLMessagesGetGameHighScores(TLBinaryReader from, bool cache = false)
+		public TLMessagesGetGameHighScores(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesGetGameHighScores; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			Peer = TLFactory.Read<TLInputPeerBase>(from, cache);
+			Peer = TLFactory.Read<TLInputPeerBase>(from);
 			Id = from.ReadInt32();
-			UserId = TLFactory.Read<TLInputUserBase>(from, cache);
-			if (cache) ReadFromCache(from);
+			UserId = TLFactory.Read<TLInputUserBase>(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xE822649D);
-			to.WriteObject(Peer, cache);
+			to.WriteObject(Peer);
 			to.Write(Id);
-			to.WriteObject(UserId, cache);
-			if (cache) WriteToCache(to);
+			to.WriteObject(UserId);
 		}
 	}
 }

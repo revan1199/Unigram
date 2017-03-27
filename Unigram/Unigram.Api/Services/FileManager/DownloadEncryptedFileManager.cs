@@ -63,7 +63,7 @@ namespace Telegram.Api.Services.FileManager
                 for (var i = 0; i < _items.Count; i++)
                 {
                     var item = _items[i];
-                    if (item.Canceled)
+                    if (item.IsCancelled)
                     {
                         _items.RemoveAt(i--);
                         try
@@ -121,7 +121,7 @@ namespace Telegram.Api.Services.FileManager
 
                 FileUtils.CheckMissingPart(_itemsSyncRoot, part, partName);
 
-                isCanceled = part.ParentItem.Canceled;
+                isCanceled = part.ParentItem.IsCancelled;
 
                 isComplete = part.ParentItem.Parts.All(x => x.Status == PartStatus.Processed);
                 if (!isComplete)
@@ -282,7 +282,7 @@ namespace Telegram.Api.Services.FileManager
 
         private List<DownloadablePart> GetItemParts(int size, DownloadableItem item)
         {
-            var chunkSize = Constants.DownloadedChunkSize;
+            var chunkSize = Constants.DownloadChunkSize;
             var parts = new List<DownloadablePart>();
             var partsCount = size / chunkSize + (size % chunkSize > 0 ? 1 : 0);
             for (var i = 0; i < partsCount; i++)
@@ -302,7 +302,7 @@ namespace Telegram.Api.Services.FileManager
 
                 foreach (var item in items)
                 {
-                    item.Canceled = true;
+                    item.IsCancelled = true;
                 }
             }
         }

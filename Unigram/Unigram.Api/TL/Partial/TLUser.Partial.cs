@@ -8,18 +8,17 @@ using Telegram.Api.Helpers;
 
 namespace Telegram.Api.TL
 {
-    public partial class TLUser : INotifyPropertyChanged
+    public partial class TLUser : ITLInputPeer
     {
-        public event PropertyChangedEventHandler PropertyChanged;
-        public override void RaisePropertyChanged(string propertyName)
-        {
-            Execute.OnUIThread(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
-        }
-
         public override string FullName
         {
             get
             {
+                if (IsDeleted)
+                {
+                    return "Name Hidden";
+                }
+
                 //if (this is TLUserEmpty)
                 //{
                 //    return "Empty user";
@@ -94,7 +93,7 @@ namespace Telegram.Api.TL
         }
 
         // TODO
-        public TLInputPeerBase ToInputPeer()
+        public override TLInputPeerBase ToInputPeer()
         {
             if (HasAccessHash)
             {
@@ -180,6 +179,5 @@ namespace Telegram.Api.TL
             return new TLInputUser { UserId = Id };
             //return null;
         }
-
     }
 }

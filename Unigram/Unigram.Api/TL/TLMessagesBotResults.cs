@@ -22,36 +22,37 @@ namespace Telegram.Api.TL
 		public String NextOffset { get; set; }
 		public TLInlineBotSwitchPM SwitchPm { get; set; }
 		public TLVector<TLBotInlineResultBase> Results { get; set; }
+		public Int32 CacheTime { get; set; }
 
 		public TLMessagesBotResults() { }
-		public TLMessagesBotResults(TLBinaryReader from, bool cache = false)
+		public TLMessagesBotResults(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesBotResults; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
 			QueryId = from.ReadInt64();
 			if (HasNextOffset) NextOffset = from.ReadString();
-			if (HasSwitchPm) SwitchPm = TLFactory.Read<TLInlineBotSwitchPM>(from, cache);
-			Results = TLFactory.Read<TLVector<TLBotInlineResultBase>>(from, cache);
-			if (cache) ReadFromCache(from);
+			if (HasSwitchPm) SwitchPm = TLFactory.Read<TLInlineBotSwitchPM>(from);
+			Results = TLFactory.Read<TLVector<TLBotInlineResultBase>>(from);
+			CacheTime = from.ReadInt32();
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			UpdateFlags();
 
-			to.Write(0x256709A6);
+			to.Write(0xCCD3563D);
 			to.Write((Int32)Flags);
 			to.Write(QueryId);
 			if (HasNextOffset) to.Write(NextOffset);
-			if (HasSwitchPm) to.WriteObject(SwitchPm, cache);
-			to.WriteObject(Results, cache);
-			if (cache) WriteToCache(to);
+			if (HasSwitchPm) to.WriteObject(SwitchPm);
+			to.WriteObject(Results);
+			to.Write(CacheTime);
 		}
 
 		private void UpdateFlags()

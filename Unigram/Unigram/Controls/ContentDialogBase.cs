@@ -10,26 +10,42 @@ using Windows.UI.Core;
 using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
+using LinqToVisualTree;
+using Windows.UI.Xaml.Media;
+using Windows.UI.Xaml.Controls.Primitives;
+using Template10.Common;
+using Unigram.Helpers;
+using Windows.UI;
+using Windows.Foundation.Metadata;
+using Template10.Services.NavigationService;
+using Template10.Services.ViewService;
+using Windows.UI.Xaml.Media.Animation;
 
 namespace Unigram.Controls
 {
-    public class ContentDialogBase : ContentDialog
+    public class ContentDialogBase : ContentControl
     {
+        private ApplicationView _applicationView;
+        private Popup _popupHost;
+
         private TaskCompletionSource<ContentDialogBaseResult> _callback;
         private ContentDialogBaseResult _result;
 
-        private Border BackgroundElement;
+        protected Border BackgroundElement;
         private AppViewBackButtonVisibility BackButtonVisibility;
+
+        public event EventHandler Closing;
 
         public ContentDialogBase()
         {
             DefaultStyleKey = typeof(ContentDialogBase);
 
+            Loading += OnLoading;
             Loaded += OnLoaded;
-            FullSizeDesired = true;
+            //FullSizeDesired = true;
 
-            Opened += OnOpened;
-            Closed += OnClosed;
+            //Opened += OnOpened;
+            //Closed += OnClosed;
         }
 
         private void OnVisibleBoundsChanged(ApplicationView sender, object args)
@@ -46,18 +62,124 @@ namespace Unigram.Controls
             }
         }
 
-        public new IAsyncOperation<ContentDialogBaseResult> ShowAsync()
+        protected void MaskTitleAndStatusBar()
+        {
+            var titlebar = ApplicationView.GetForCurrentView().TitleBar;
+            var backgroundBrush = Application.Current.Resources["TelegramBackgroundTitlebarBrush"] as SolidColorBrush;
+            var foregroundBrush = Application.Current.Resources["SystemControlForegroundBaseHighBrush"] as SolidColorBrush;
+            var overlayBrush = OverlayBrush as SolidColorBrush;
+
+            if (overlayBrush != null)
+            {
+                var maskBackground = ColorsHelper.AlphaBlend(backgroundBrush.Color, overlayBrush.Color);
+                var maskForeground = ColorsHelper.AlphaBlend(foregroundBrush.Color, overlayBrush.Color);
+
+                titlebar.BackgroundColor = maskBackground;
+                titlebar.ForegroundColor = maskForeground;
+                titlebar.ButtonBackgroundColor = maskBackground;
+                titlebar.ButtonForegroundColor = maskForeground;
+
+                if (ApiInformation.IsTypePresent("Windows.UI.ViewManagement.StatusBar"))
+                {
+                    var statusBar = StatusBar.GetForCurrentView();
+                    statusBar.BackgroundColor = maskBackground;
+                    statusBar.ForegroundColor = maskForeground;
+                }
+            }
+        }
+
+        protected void UnmaskTitleAndStatusBar()
+        {
+            var titlebar = ApplicationView.GetForCurrentView().TitleBar;
+            var backgroundBrush = Application.Current.Resources["TelegramBackgroundTitlebarBrush"] as SolidColorBrush;
+            var foregroundBrush = Application.Current.Resources["SystemControlForegroundBaseHighBrush"] as SolidColorBrush;
+
+            titlebar.BackgroundColor = backgroundBrush.Color;
+            titlebar.ForegroundColor = foregroundBrush.Color;
+            titlebar.ButtonBackgroundColor = backgroundBrush.Color;
+            titlebar.ButtonForegroundColor = foregroundBrush.Color;
+
+            if (ApiInformation.IsTypePresent("Windows.UI.ViewManagement.StatusBar"))
+            {
+                var statusBar = StatusBar.GetForCurrentView();
+                statusBar.BackgroundColor = backgroundBrush.Color;
+                statusBar.ForegroundColor = foregroundBrush.Color;
+            }
+        }
+
+        public IAsyncOperation<ContentDialogBaseResult> ShowAsync()
         {
             return AsyncInfo.Run(async (token) =>
             {
+                Margin = new Thickness();
+
+                if (DataContext is INavigable navigable)
+                {
+                    navigable.NavigationService = new ContentDialogNavigationService(this);
+                }
+
                 _result = ContentDialogBaseResult.None;
                 _callback = new TaskCompletionSource<ContentDialogBaseResult>();
-                await base.ShowAsync();
+
+                _applicationView = ApplicationView.GetForCurrentView();
+
+                if (_popupHost == null)
+                {
+                    _popupHost = new Popup();
+                    _popupHost.Child = this;
+                    _popupHost.Loading += PopupHost_Loading;
+                    _popupHost.Opened += PopupHost_Opened;
+                    _popupHost.Closed += PopupHost_Closed;
+                }
+
+                _popupHost.IsOpen = true;
+
                 return await _callback.Task;
             });
         }
 
-        public new void Hide()
+        private void PopupHost_Loading(FrameworkElement sender, object args)
+        {
+            OnVisibleBoundsChanged(_applicationView, null);
+        }
+
+        private void PopupHost_Opened(object sender, object e)
+        {
+            MaskTitleAndStatusBar();
+
+            //BackButtonVisibility = SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility;
+            //SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility = AppViewBackButtonVisibility.Visible;
+            _applicationView.VisibleBoundsChanged += OnVisibleBoundsChanged;
+            //BootStrapper.BackRequested += BootStrapper_BackRequested;
+            //Window.Current.SizeChanged += OnSizeChanged;
+
+            OnVisibleBoundsChanged(_applicationView, null);
+        }
+
+        private void PopupHost_Closed(object sender, object e)
+        {
+            UnmaskTitleAndStatusBar();
+
+            _callback.TrySetResult(_result);
+
+            //SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility = BackButtonVisibility;
+            _applicationView.VisibleBoundsChanged -= OnVisibleBoundsChanged;
+            BootStrapper.BackRequested -= BootStrapper_BackRequested;
+        }
+
+        private void BootStrapper_BackRequested(object sender, HandledEventArgs e)
+        {
+            e.Handled = true;
+            Hide();
+        }
+
+        protected void Prepare()
+        {
+            Margin = new Thickness(Window.Current.Bounds.Width, Window.Current.Bounds.Height, 0, 0);
+            Closing?.Invoke(this, EventArgs.Empty);
+        }
+
+        public void Hide()
         {
             Hide(ContentDialogBaseResult.None);
         }
@@ -65,26 +187,7 @@ namespace Unigram.Controls
         public void Hide(ContentDialogBaseResult result)
         {
             _result = result;
-            base.Hide();
-        }
-
-        private void OnOpened(ContentDialog sender, ContentDialogOpenedEventArgs args)
-        {
-            BackButtonVisibility = SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility;
-            SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility = AppViewBackButtonVisibility.Visible;
-            ApplicationView.GetForCurrentView().VisibleBoundsChanged += OnVisibleBoundsChanged;
-            //Window.Current.SizeChanged += OnSizeChanged;
-
-            OnVisibleBoundsChanged(ApplicationView.GetForCurrentView(), null);
-        }
-
-        private void OnClosed(ContentDialog sender, ContentDialogClosedEventArgs args)
-        {
-            _callback.TrySetResult(_result);
-
-            SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility = BackButtonVisibility;
-            ApplicationView.GetForCurrentView().VisibleBoundsChanged -= OnVisibleBoundsChanged;
-            //Window.Current.SizeChanged -= OnSizeChanged;
+            _popupHost.IsOpen = false;
         }
 
         protected override void OnApplyTemplate()
@@ -97,14 +200,29 @@ namespace Unigram.Controls
             UpdateViewBase();
         }
 
+        private void OnLoading(FrameworkElement sender, object args)
+        {
+            if (Windows.ApplicationModel.DesignMode.DesignModeEnabled)
+            {
+                return;
+            }
+
+            UpdateViewBase();
+        }
+
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
+            if (Windows.ApplicationModel.DesignMode.DesignModeEnabled)
+            {
+                return;
+            }
+
             UpdateViewBase();
         }
 
         private void UpdateViewBase()
         {
-            var bounds = ApplicationView.GetForCurrentView().VisibleBounds;
+            var bounds = _applicationView.VisibleBounds;
             MinWidth = bounds.Width;
             MinHeight = bounds.Height;
             MaxWidth = bounds.Width;
@@ -113,9 +231,22 @@ namespace Unigram.Controls
             UpdateView(bounds);
         }
 
+        protected bool IsFullScreenMode()
+        {
+            var bounds = _applicationView.VisibleBounds;
+            return IsFullScreenMode(bounds);
+        }
+
+        protected virtual bool IsFullScreenMode(Rect bounds)
+        {
+            return (HorizontalAlignment == HorizontalAlignment.Stretch && VerticalAlignment == VerticalAlignment.Stretch) || (AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Mobile" && (bounds.Width < 500 || bounds.Height < 500));
+        }
+
         protected virtual void UpdateView(Rect bounds)
         {
-            if (AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Mobile" && (bounds.Width < 500 || bounds.Height < 500))
+            if (BackgroundElement == null) return;
+
+            if (IsFullScreenMode(bounds))
             {
                 BackgroundElement.MinWidth = bounds.Width;
                 BackgroundElement.MinHeight = bounds.Height;
@@ -123,10 +254,10 @@ namespace Unigram.Controls
             }
             else
             {
-                BackgroundElement.MinWidth = Math.Min(640, bounds.Width);
-                BackgroundElement.MinHeight = Math.Min(500, bounds.Height);
-                BackgroundElement.MaxWidth = Math.Min(640, bounds.Width);
-                BackgroundElement.MaxHeight = Math.Min(500, bounds.Height);
+                BackgroundElement.MinWidth = Math.Min(360, bounds.Width);
+                BackgroundElement.MinHeight = Math.Min(460, bounds.Height);
+                BackgroundElement.MaxWidth = Math.Min(360, bounds.Width);
+                BackgroundElement.MaxHeight = Math.Min(460, bounds.Height);
 
                 if (BackgroundElement.MinWidth == bounds.Width && BackgroundElement.MinHeight == bounds.Height)
                 {
@@ -181,6 +312,19 @@ namespace Unigram.Controls
                 }
             }
         }
+
+        #region OverlayBrush
+
+        public Brush OverlayBrush
+        {
+            get { return (Brush)GetValue(OverlayBrushProperty); }
+            set { SetValue(OverlayBrushProperty, value); }
+        }
+
+        public static readonly DependencyProperty OverlayBrushProperty =
+            DependencyProperty.Register("OverlayBrush", typeof(Brush), typeof(ContentDialogBase), new PropertyMetadata(null));
+
+        #endregion
     }
 
     public enum ContentDialogBaseResult
@@ -190,5 +334,122 @@ namespace Unigram.Controls
         None,
         OK,
         Yes
+    }
+
+    public class ContentDialogNavigationService : INavigationService
+    {
+        private readonly ContentDialogBase _contentDialog;
+
+        public ContentDialogNavigationService(ContentDialogBase contentDialog)
+        {
+            _contentDialog = contentDialog;
+        }
+
+        public void GoBack(NavigationTransitionInfo infoOverride = null)
+        {
+            _contentDialog.Hide(ContentDialogBaseResult.None);
+        }
+
+        public object Content => throw new NotImplementedException();
+
+        public bool CanGoBack => throw new NotImplementedException();
+
+        public bool CanGoForward => throw new NotImplementedException();
+
+        public string NavigationState { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
+        public object CurrentPageParam => throw new NotImplementedException();
+
+        public Type CurrentPageType => throw new NotImplementedException();
+
+        public DispatcherWrapper Dispatcher => throw new NotImplementedException();
+
+        public Frame Frame => throw new NotImplementedException();
+
+        public FrameFacade FrameFacade => throw new NotImplementedException();
+
+        public bool IsInMainView => throw new NotImplementedException();
+
+        public event TypedEventHandler<Type> AfterRestoreSavedNavigation;
+
+        public void ClearCache(bool removeCachedPagesInBackStack = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ClearHistory()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void GoForward()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> LoadAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Navigate(Type page, object parameter = null, NavigationTransitionInfo infoOverride = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Navigate<T>(T key, object parameter = null, NavigationTransitionInfo infoOverride = null) where T : struct, IConvertible
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> NavigateAsync(Type page, object parameter = null, NavigationTransitionInfo infoOverride = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> NavigateAsync<T>(T key, object parameter = null, NavigationTransitionInfo infoOverride = null) where T : struct, IConvertible
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<ViewLifetimeControl> OpenAsync(Type page, object parameter = null, string title = null, ViewSizePreference size = ViewSizePreference.UseHalf)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Refresh()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Refresh(object param)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> RestoreSavedNavigationAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Resuming()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task SaveAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task SaveNavigationAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task SuspendingAsync()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

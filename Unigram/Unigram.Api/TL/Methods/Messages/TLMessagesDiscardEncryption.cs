@@ -4,31 +4,30 @@ using System;
 namespace Telegram.Api.TL.Methods.Messages
 {
 	/// <summary>
-	/// RCP method messages.discardEncryption
+	/// RCP method messages.discardEncryption.
+	/// Returns <see cref="Telegram.Api.TL.TLBoolBase"/>
 	/// </summary>
 	public partial class TLMessagesDiscardEncryption : TLObject
 	{
 		public Int32 ChatId { get; set; }
 
 		public TLMessagesDiscardEncryption() { }
-		public TLMessagesDiscardEncryption(TLBinaryReader from, bool cache = false)
+		public TLMessagesDiscardEncryption(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesDiscardEncryption; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			ChatId = from.ReadInt32();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xEDD923C5);
 			to.Write(ChatId);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

@@ -116,6 +116,8 @@ HRESULT OpusStreamSink::ValidateMediaType(IMFMediaType* mediaType)
 
 	UINT32 samplesPerSecond;
 	ReturnIfFailed(result, mediaType->GetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, &samplesPerSecond));
+	if (samplesPerSecond != OPUS_SAMPLES_PER_SECOND)
+		return MF_E_INVALIDMEDIATYPE;
 
 	UINT32 blockAlignment;
 	ReturnIfFailed(result, mediaType->GetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, &blockAlignment));
@@ -140,12 +142,12 @@ HRESULT OpusStreamSink::GetSupportedMediaType(DWORD index, IMFMediaType** ppMedi
 	ReturnIfFailed(result, MFCreateMediaType(&mediaType));
 	ReturnIfFailed(result, mediaType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio));
 	ReturnIfFailed(result, mediaType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM));
-	ReturnIfFailed(result, mediaType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, 2));
+	ReturnIfFailed(result, mediaType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, 1));
 	ReturnIfFailed(result, mediaType->SetUINT32(MF_MT_ALL_SAMPLES_INDEPENDENT, TRUE));
 	ReturnIfFailed(result, mediaType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, OPUS_SAMPLES_PER_SECOND));
 	ReturnIfFailed(result, mediaType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16));
-	ReturnIfFailed(result, mediaType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, 4));
-	ReturnIfFailed(result, mediaType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, 4 * OPUS_SAMPLES_PER_SECOND));
+	ReturnIfFailed(result, mediaType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, 2));
+	ReturnIfFailed(result, mediaType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, 2 * OPUS_SAMPLES_PER_SECOND));
 
 	*ppMediaType = mediaType.Detach();
 	return S_OK;

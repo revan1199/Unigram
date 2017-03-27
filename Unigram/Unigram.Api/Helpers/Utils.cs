@@ -1,14 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-#if WINDOWS_PHONE
-using System.Threading;
-using System.Security.Cryptography;
-using System.Windows;
-#elif WIN_RT
 using Windows.Security.Cryptography.Core;
 using System.Runtime.InteropServices.WindowsRuntime;
-#endif
 using System.Text;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
@@ -17,6 +11,7 @@ using Telegram.Api.TL;
 using System.Globalization;
 using Telegram.Api.Services;
 using Windows.Security.Cryptography;
+using Windows.Storage.Streams;
 
 namespace Telegram.Api.Helpers
 {
@@ -523,6 +518,17 @@ namespace Telegram.Api.Helpers
             return (dateTime.ToUniversalTime() - dtDateTime).TotalSeconds;
         }
 
+        public static long CurrentTimestamp
+        {
+            get
+            {
+                var dtDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0);
+                DateTime.SpecifyKind(dtDateTime, DateTimeKind.Utc);
+
+                return (long)(DateTime.Now.ToUniversalTime() - dtDateTime).TotalMilliseconds;
+            }
+        }
+
         public static DateTime UnixTimestampToDateTime(double unixTimeStamp)
         {
             // From UTC0 UnixTime to local DateTime
@@ -579,53 +585,30 @@ namespace Telegram.Api.Helpers
 
         public static byte[] ComputeSHA1(byte[] data)
         {
-#if WINDOWS_PHONE
-            var sha1 = new SHA1Managed(); // to avoid thread sync problems http://stackoverflow.com/questions/12644257/sha1managed-computehash-occasionally-different-on-different-servers
-            return sha1.ComputeHash(data);
-#elif WIN_RT
             var sha1 = HashAlgorithmProvider.OpenAlgorithm(HashAlgorithmNames.Sha1);
             return sha1.HashData(data.AsBuffer()).ToArray();
-#endif
         }
 
-        public static byte[] ComputeMD5(byte[] data)
+        public static byte[] ComputeMD5(string data)
         {
-#if WINDOWS_PHONE
-            var md5 = new MD5Managed();
-            return md5.ComputeHash(data);
-#elif WIN_RT
-            var md5 = HashAlgorithmProvider.OpenAlgorithm(HashAlgorithmNames.Md5);
-            return md5.HashData(data.AsBuffer()).ToArray();
-#endif
-        }
+            var input = CryptographicBuffer.ConvertStringToBinary(data, BinaryStringEncoding.Utf8);
+            var hasher = HashAlgorithmProvider.OpenAlgorithm(HashAlgorithmNames.Md5);
+            var hashed = hasher.HashData(input);
+            byte[] digest;
+            CryptographicBuffer.CopyToByteArray(hashed, out digest);
 
-        public static byte[] ComputeCRC32(string data)
-        {
-            byte[] utf16Bytes = Encoding.Unicode.GetBytes(data);
-            byte[] utf8Bytes = Encoding.Convert(Encoding.Unicode, Encoding.UTF8, utf16Bytes);
-
-            return ComputeCRC32(utf8Bytes);
-        }
-
-        public static byte[] ComputeCRC32(byte[] data)
-        {
-            var crc = new CRC32();
-            var hash = crc.ComputeHash(data);
-
-            return hash;
+            return digest;
         }
 
         public static string CurrentUICulture()
         {
-#if WIN_RT
             return Windows.Globalization.Language.CurrentInputMethodLanguageTag;
-#elif WINDOWS_PHONE
-            return Thread.CurrentThread.CurrentUICulture.TwoLetterISOLanguageName;
-#endif
         }
 
         public static int GetColorIndex(int id)
         {
+            return id % 6;
+
             if (id < 0)
             {
                 id += 256;

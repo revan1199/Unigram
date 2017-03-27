@@ -19,21 +19,16 @@ namespace Unigram.Selectors
         public DataTemplate FriendMessageTemplate { get; set; }
         public DataTemplate ChatFriendMessageTemplate { get; set; }
 
-        public DataTemplate UserForwardTemplate { get; set; }
-        public DataTemplate FriendForwardTemplate { get; set; }
-        public DataTemplate ChatFriendForwardTemplate { get; set; }
-
-        public DataTemplate UserMediaTemplate { get; set; }
-        public DataTemplate FriendMediaTemplate { get; set; }
-        public DataTemplate ChatFriendMediaTemplate { get; set; }
-
         public DataTemplate UserStickerTemplate { get; set; }
         public DataTemplate FriendStickerTemplate { get; set; }
         public DataTemplate ChatFriendStickerTemplate { get; set; }
 
-        public DataTemplate ServiceMessageTemplate { get; set; }
+        public DataTemplate ServiceUserCallTemplate { get; set; }
+        public DataTemplate ServiceFriendCallTemplate { get; set; }
 
-        public DataTemplate UnreadMessagesTemplate { get; set; }
+        public DataTemplate ServiceMessageTemplate { get; set; }
+        public DataTemplate ServiceMessagePhotoTemplate { get; set; }
+        public DataTemplate ServiceMessageLocalTemplate { get; set; }
 
         public MessageTemplateSelector()
         {
@@ -41,23 +36,39 @@ namespace Unigram.Selectors
             _templatesCache.Add(typeof(TLMessageService), new Func<TLMessageBase, DataTemplate>(GenerateServiceMessageTemplate));
             _templatesCache.Add(typeof(TLMessageEmpty), (TLMessageBase m) => EmptyMessageTemplate);
             _templatesCache.Add(typeof(TLMessage), new Func<TLMessageBase, DataTemplate>(GenerateCommonMessageTemplate));
-            //_templatesCache.Add(typeof(TLMessageForwarded), new Func<TLMessageBase, DataTemplate>(GenerateCommonMessageTemplate));
         }
 
         private DataTemplate GenerateServiceMessageTemplate(TLMessageBase message)
         {
-            var tLMessageService = message as TLMessageService;
-            if (tLMessageService == null)
+            var serviceMessage = message as TLMessageService;
+            if (serviceMessage == null)
             {
                 return EmptyMessageTemplate;
             }
-            // TODO: actually this is a local TL, and at this time we don't support it.
-            //if (!(tLMessageService.Action is TLMessageActionUnreadMessages))
-            //{
-            //    return ServiceMessageTemplate ?? EmptyMessageTemplate;
-            //}
 
-            return UnreadMessagesTemplate ?? (ServiceMessageTemplate ?? EmptyMessageTemplate);
+            if (serviceMessage.Action is TLMessageActionChatEditPhoto)
+            {
+                return ServiceMessagePhotoTemplate;
+            }
+            else if (serviceMessage.Action is TLMessageActionHistoryClear)
+            {
+                return EmptyMessageTemplate;
+            }
+            else if (serviceMessage.Action is TLMessageActionDate)
+            {
+                return ServiceMessageLocalTemplate;
+            }
+            else if (serviceMessage.Action is TLMessageActionUnreadMessages)
+            {
+                //return ServiceMessageUnreadTemplate;
+                return ServiceMessageLocalTemplate;
+            }
+            else if (serviceMessage.Action is TLMessageActionPhoneCall)
+            {
+                return serviceMessage.IsOut ? ServiceUserCallTemplate : ServiceFriendCallTemplate;
+            }
+
+            return ServiceMessageTemplate;
         }
 
         private DataTemplate GenerateCommonMessageTemplate(TLMessageBase m)
@@ -70,59 +81,29 @@ namespace Unigram.Selectors
 
             if (message.IsSticker())
             {
-                if (message.IsOut)
+                if (message.IsOut && !message.IsPost)
                 {
-                    return UserStickerTemplate ?? EmptyMessageTemplate;
+                    return UserStickerTemplate;
                 }
-                if (message.ToId is TLPeerChat)
+                else if (message.ToId is TLPeerChat || (message.ToId is TLPeerChannel && !message.IsPost))
                 {
-                    return ChatFriendStickerTemplate ?? EmptyMessageTemplate;
+                    return ChatFriendStickerTemplate;
                 }
 
-                return FriendStickerTemplate ?? EmptyMessageTemplate;
+                return FriendStickerTemplate;
             }
             else
             {
-                if (message.IsOut)
+                if (message.IsOut && !message.IsPost)
                 {
-                    if (!(message?.Media is TLMessageMediaEmpty))
-                    {
-                        return UserMediaTemplate ?? UserMessageTemplate;
-                    }
-
-                    //if (message25?.FwdFromId != null)
-                    //{
-                    //    return UserForwardTemplate ?? UserMessageTemplate;
-                    //}
-
-                    return UserMessageTemplate ?? EmptyMessageTemplate;
+                    return UserMessageTemplate;
                 }
-                if (message.ToId is TLPeerChat || message.ToId is TLPeerChannel) // TODO: probably some addtional check needed for channels
+                else if (message.ToId is TLPeerChat || (message.ToId is TLPeerChannel && !message.IsPost))
                 {
-                    if (!(message?.Media is TLMessageMediaEmpty))
-                    {
-                        return ChatFriendMediaTemplate ?? ChatFriendMessageTemplate;
-                    }
-
-                    //if (message25?.FwdFromId != null)
-                    //{
-                    //    return ChatFriendForwardTemplate ?? ChatFriendMessageTemplate;
-                    //}
-
-                    return ChatFriendMessageTemplate ?? EmptyMessageTemplate;
+                    return ChatFriendMessageTemplate;
                 }
-
-                if (!(message?.Media is TLMessageMediaEmpty))
-                {
-                    return FriendMediaTemplate ?? FriendMessageTemplate;
-                }
-
-                //if (message25?.FwdFromId != null)
-                //{
-                //    return FriendForwardTemplate ?? FriendMessageTemplate;
-                //}
-
-                return FriendMessageTemplate ?? EmptyMessageTemplate;
+                
+                return FriendMessageTemplate;
             }
         }
 
@@ -134,8 +115,7 @@ namespace Unigram.Selectors
                 return EmptyMessageTemplate;
             }
 
-            Func<TLMessageBase, DataTemplate> func;
-            if (_templatesCache.TryGetValue(message.GetType(), out func))
+            if (_templatesCache.TryGetValue(message.GetType(), out Func<TLMessageBase, DataTemplate> func))
             {
                 return func.Invoke(message);
             }

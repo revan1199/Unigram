@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Messages
 {
 	/// <summary>
-	/// RCP method messages.saveRecentSticker
+	/// RCP method messages.saveRecentSticker.
+	/// Returns <see cref="Telegram.Api.TL.TLBoolBase"/>
 	/// </summary>
 	public partial class TLMessagesSaveRecentSticker : TLObject
 	{
@@ -21,28 +22,26 @@ namespace Telegram.Api.TL.Methods.Messages
 		public Boolean Unsave { get; set; }
 
 		public TLMessagesSaveRecentSticker() { }
-		public TLMessagesSaveRecentSticker(TLBinaryReader from, bool cache = false)
+		public TLMessagesSaveRecentSticker(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesSaveRecentSticker; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
-			Id = TLFactory.Read<TLInputDocumentBase>(from, cache);
+			Id = TLFactory.Read<TLInputDocumentBase>(from);
 			Unsave = from.ReadBoolean();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x392718F8);
 			to.Write((Int32)Flags);
-			to.WriteObject(Id, cache);
+			to.WriteObject(Id);
 			to.Write(Unsave);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

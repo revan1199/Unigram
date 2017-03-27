@@ -4,14 +4,15 @@ using System;
 namespace Telegram.Api.TL.Methods.Messages
 {
 	/// <summary>
-	/// RCP method messages.sendMessage
+	/// RCP method messages.sendMessage.
+	/// Returns <see cref="Telegram.Api.TL.TLUpdatesBase"/>
 	/// </summary>
 	public partial class TLMessagesSendMessage : TLObject
 	{
 		[Flags]
 		public enum Flag : Int32
 		{
-			NoWebpage = (1 << 1),
+			NoWebPage = (1 << 1),
 			Silent = (1 << 5),
 			Background = (1 << 6),
 			ClearDraft = (1 << 7),
@@ -20,7 +21,7 @@ namespace Telegram.Api.TL.Methods.Messages
 			Entities = (1 << 3),
 		}
 
-		public bool IsNoWebpage { get { return Flags.HasFlag(Flag.NoWebpage); } set { Flags = value ? (Flags | Flag.NoWebpage) : (Flags & ~Flag.NoWebpage); } }
+		public bool IsNoWebPage { get { return Flags.HasFlag(Flag.NoWebPage); } set { Flags = value ? (Flags | Flag.NoWebPage) : (Flags & ~Flag.NoWebPage); } }
 		public bool IsSilent { get { return Flags.HasFlag(Flag.Silent); } set { Flags = value ? (Flags | Flag.Silent) : (Flags & ~Flag.Silent); } }
 		public bool IsBackground { get { return Flags.HasFlag(Flag.Background); } set { Flags = value ? (Flags | Flag.Background) : (Flags & ~Flag.Background); } }
 		public bool IsClearDraft { get { return Flags.HasFlag(Flag.ClearDraft); } set { Flags = value ? (Flags | Flag.ClearDraft) : (Flags & ~Flag.ClearDraft); } }
@@ -37,38 +38,36 @@ namespace Telegram.Api.TL.Methods.Messages
 		public TLVector<TLMessageEntityBase> Entities { get; set; }
 
 		public TLMessagesSendMessage() { }
-		public TLMessagesSendMessage(TLBinaryReader from, bool cache = false)
+		public TLMessagesSendMessage(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesSendMessage; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
-			Peer = TLFactory.Read<TLInputPeerBase>(from, cache);
+			Peer = TLFactory.Read<TLInputPeerBase>(from);
 			if (HasReplyToMsgId) ReplyToMsgId = from.ReadInt32();
 			Message = from.ReadString();
 			RandomId = from.ReadInt64();
-			if (HasReplyMarkup) ReplyMarkup = TLFactory.Read<TLReplyMarkupBase>(from, cache);
-			if (HasEntities) Entities = TLFactory.Read<TLVector<TLMessageEntityBase>>(from, cache);
-			if (cache) ReadFromCache(from);
+			if (HasReplyMarkup) ReplyMarkup = TLFactory.Read<TLReplyMarkupBase>(from);
+			if (HasEntities) Entities = TLFactory.Read<TLVector<TLMessageEntityBase>>(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			UpdateFlags();
 
 			to.Write(0xFA88427A);
 			to.Write((Int32)Flags);
-			to.WriteObject(Peer, cache);
+			to.WriteObject(Peer);
 			if (HasReplyToMsgId) to.Write(ReplyToMsgId.Value);
 			to.Write(Message);
 			to.Write(RandomId);
-			if (HasReplyMarkup) to.WriteObject(ReplyMarkup, cache);
-			if (HasEntities) to.WriteObject(Entities, cache);
-			if (cache) WriteToCache(to);
+			if (HasReplyMarkup) to.WriteObject(ReplyMarkup);
+			if (HasEntities) to.WriteObject(Entities);
 		}
 
 		private void UpdateFlags()

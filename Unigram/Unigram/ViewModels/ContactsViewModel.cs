@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,67 +13,85 @@ using Telegram.Api.TL;
 using Unigram.Collections;
 using Unigram.Common;
 using Unigram.Converters;
+using Unigram.Core.Services;
 
 namespace Unigram.ViewModels
 {
     public class ContactsViewModel : UnigramViewModelBase, IHandle, IHandle<TLUpdateUserStatus>
     {
-        public ContactsViewModel(IMTProtoService protoService, ICacheService cacheService, ITelegramEventAggregator aggregator)
+        private IContactsService _contactsService;
+
+        public ContactsViewModel(IMTProtoService protoService, ICacheService cacheService, ITelegramEventAggregator aggregator, IContactsService contactsService)
             : base(protoService, cacheService, aggregator)
         {
-            Items = new SortedObservableCollection<UsersPanelListItem>(new UsersPanelListItemComparer());
+            _contactsService = contactsService;
+
+            Items = new SortedObservableCollection<TLUser>(new TLUserComparer(true));
+            Search = new ObservableCollection<KeyedList<string, TLObject>>();
         }
 
-        public async Task getTLContacts()
+        public async void LoadContacts()
         {
-            var contacts = CacheService.GetContacts();
-            foreach (var item in contacts.OfType<TLUser>())
-            {
-                var user = item as TLUser;
-                if (user.IsSelf)
-                {
-                    continue;
-                }
+            await LoadContactsAsync();
+        }
 
-                var status = LastSeenHelper.GetLastSeen(user);
-                var listItem = new UsersPanelListItem(user as TLUser);
-                listItem.fullName = user.FullName;
-                listItem.lastSeen = status.Item1;
-                listItem.lastSeenEpoch = status.Item2;
-                listItem.Photo = listItem._parent.Photo;
-                listItem.PlaceHolderColor = BindConvert.Current.Bubble(listItem._parent.Id);
+        public async Task LoadContactsAsync()
+        {
+            //var contacts = CacheService.GetContacts();
+            //foreach (var item in contacts.OfType<TLUser>())
+            //{
+            //    var user = item as TLUser;
+            //    if (user.IsSelf)
+            //    {
+            //        continue;
+            //    }
 
-                Items.Add(listItem);
-            }
+            //    //var status = LastSeenHelper.GetLastSeen(user);
+            //    //var listItem = new UsersPanelListItem(user as TLUser);
+            //    //listItem.fullName = user.FullName;
+            //    //listItem.lastSeen = status.Item1;
+            //    //listItem.lastSeenEpoch = status.Item2;
+            //    //listItem.Photo = listItem._parent.Photo;
+            //    //listItem.PlaceHolderColor = BindConvert.Current.Bubble(listItem._parent.Id);
+
+            //    Items.Add(user);
+            //}
+
+            var contacts = new TLUser[0];
 
             var input = string.Join(",", contacts.Select(x => x.Id).Union(new[] { SettingsHelper.UserId }).OrderBy(x => x));
-            var hash = MD5Core.GetHash(input);
+            var hash = Utils.ComputeMD5(input);
             var hex = BitConverter.ToString(hash).Replace("-", string.Empty).ToLower();
 
             var response = await ProtoService.GetContactsAsync(hex);
-            if (response.IsSucceeded && response.Value is TLContactsContacts)
+            if (response.IsSucceeded)
             {
-                var result = response.Value as TLContactsContacts;
+                var result = response.Result as TLContactsContacts;
                 if (result != null)
                 {
-                    foreach (var item in result.Users.OfType<TLUser>())
+                    Execute.BeginOnUIThread(() =>
                     {
-                        var user = item as TLUser;
-                        if (user.IsSelf)
+                        foreach (var item in result.Users.OfType<TLUser>())
                         {
-                            continue;
+                            var user = item as TLUser;
+                            if (user.IsSelf)
+                            {
+                                continue;
+                            }
+
+                            //var status = LastSeenHelper.GetLastSeen(user);
+                            //var listItem = new UsersPanelListItem(user as TLUser);
+                            //listItem.fullName = user.FullName;
+                            //listItem.lastSeen = status.Item1;
+                            //listItem.lastSeenEpoch = status.Item2;
+                            //listItem.Photo = listItem._parent.Photo;
+                            //listItem.PlaceHolderColor = BindConvert.Current.Bubble(listItem._parent.Id);
+
+                            Items.Add(user);
                         }
+                    });
 
-                        var status = LastSeenHelper.GetLastSeen(user);
-                        var listItem = new UsersPanelListItem(user as TLUser);
-                        listItem.fullName = user.FullName;
-                        listItem.lastSeen = status.Item1;
-                        listItem.lastSeenEpoch = status.Item2;
-                        listItem.Photo = listItem._parent.Photo;
-                        listItem.PlaceHolderColor = BindConvert.Current.Bubble(listItem._parent.Id);
-
-                        Items.Add(listItem);
-                    }
+                    await _contactsService.SyncContactsAsync(response.Result);
                 }
             }
 
@@ -84,35 +103,52 @@ namespace Unigram.ViewModels
             var cached = CacheService.GetUser(SettingsHelper.UserId) as TLUser;
             if (cached != null)
             {
-                var status = LastSeenHelper.GetLastSeen(cached);
-                var listItem = new UsersPanelListItem(cached as TLUser);
-                listItem.fullName = cached.FullName;
-                listItem.lastSeen = status.Item1;
-                listItem.lastSeenEpoch = status.Item2;
-                listItem.Photo = listItem._parent.Photo;
-                listItem.PlaceHolderColor = BindConvert.Current.Bubble(listItem._parent.Id);
+                //var status = LastSeenHelper.GetLastSeen(cached);
+                //var listItem = new UsersPanelListItem(cached as TLUser);
+                //listItem.fullName = cached.FullName;
+                //listItem.lastSeen = status.Item1;
+                //listItem.lastSeenEpoch = status.Item2;
+                //listItem.Photo = listItem._parent.Photo;
+                //listItem.PlaceHolderColor = BindConvert.Current.Bubble(listItem._parent.Id);
 
-                Self = listItem;
+                Self = cached;
             }
             else
             {
                 var response = await ProtoService.GetUsersAsync(new TLVector<TLInputUserBase> { new TLInputUserSelf() });
                 if (response.IsSucceeded)
                 {
-                    var user = response.Value.FirstOrDefault() as TLUser;
+                    var user = response.Result.FirstOrDefault() as TLUser;
                     if (user != null)
                     {
-                        var status = LastSeenHelper.GetLastSeen(user);
-                        var listItem = new UsersPanelListItem(user as TLUser);
-                        listItem.fullName = user.FullName;
-                        listItem.lastSeen = status.Item1;
-                        listItem.lastSeenEpoch = status.Item2;
-                        listItem.Photo = listItem._parent.Photo;
-                        listItem.PlaceHolderColor = BindConvert.Current.Bubble(listItem._parent.Id);
+                        //var status = LastSeenHelper.GetLastSeen(user);
+                        //var listItem = new UsersPanelListItem(user as TLUser);
+                        //listItem.fullName = user.FullName;
+                        //listItem.lastSeen = status.Item1;
+                        //listItem.lastSeenEpoch = status.Item2;
+                        //listItem.Photo = listItem._parent.Photo;
+                        //listItem.PlaceHolderColor = BindConvert.Current.Bubble(listItem._parent.Id);
 
-                        Self = listItem;
+                        Self = user;
                     }
                 }
+            }
+        }
+
+        public async Task SearchAsync(string query)
+        {
+            Search.Clear();
+
+            var contacts = CacheService.GetContacts().Where(x => CultureInfo.CurrentCulture.CompareInfo.IndexOf(x.FullName, query, CompareOptions.IgnoreCase) >= 0).ToList();
+            if (contacts.Count > 0)
+            {
+                Search.Add(new KeyedList<string, TLObject>("Contacts", contacts));
+            }
+
+            var result = await ProtoService.SearchAsync(query, 100);
+            if (result.IsSucceeded)
+            {
+                Search.Add(new KeyedList<string, TLObject>("Global search", result.Result.Users));
             }
         }
 
@@ -122,7 +158,7 @@ namespace Unigram.ViewModels
         {
             Execute.BeginOnUIThread(() =>
             {
-                var first = Items.FirstOrDefault(x => x._parent.Id == message.UserId);
+                var first = Items.FirstOrDefault(x => x.Id == message.UserId);
                 if (first != null)
                 {
                     Items.Remove(first);
@@ -131,25 +167,27 @@ namespace Unigram.ViewModels
                 var user = CacheService.GetUser(message.UserId) as TLUser;
                 if (user != null && user.IsContact && user.IsSelf == false)
                 {
-                    var status = LastSeenHelper.GetLastSeen(user);
-                    var listItem = new UsersPanelListItem(user as TLUser);
-                    listItem.fullName = user.FullName;
-                    listItem.lastSeen = status.Item1;
-                    listItem.lastSeenEpoch = status.Item2;
-                    listItem.Photo = listItem._parent.Photo;
-                    listItem.PlaceHolderColor = BindConvert.Current.Bubble(listItem._parent.Id);
+                    //var status = LastSeenHelper.GetLastSeen(user);
+                    //var listItem = new UsersPanelListItem(user as TLUser);
+                    //listItem.fullName = user.FullName;
+                    //listItem.lastSeen = status.Item1;
+                    //listItem.lastSeenEpoch = status.Item2;
+                    //listItem.Photo = listItem._parent.Photo;
+                    //listItem.PlaceHolderColor = BindConvert.Current.Bubble(listItem._parent.Id);
 
-                    Items.Add(listItem);
+                    Items.Add(user);
                 }
             });
         }
 
         #endregion
 
-        public SortedObservableCollection<UsersPanelListItem> Items { get; private set; }
+        public SortedObservableCollection<TLUser> Items { get; private set; }
 
-        private UsersPanelListItem _self;
-        public UsersPanelListItem Self
+        public ObservableCollection<KeyedList<string, TLObject>> Search { get; private set; }
+
+        private TLUser _self;
+        public TLUser Self
         {
             get
             {
@@ -162,25 +200,43 @@ namespace Unigram.ViewModels
         }
     }
 
-    public class UsersPanelListItemComparer : IComparer<UsersPanelListItem>
+    public class TLUserComparer : IComparer<TLUser>
     {
-        public int Compare(UsersPanelListItem x, UsersPanelListItem y)
+        private bool _epoch;
+
+        public TLUserComparer(bool epoch)
         {
-            var epoch = y.lastSeenEpoch.CompareTo(x.lastSeenEpoch);
-            if (epoch == 0)
+            _epoch = epoch;
+        }
+
+        public int Compare(TLUser x, TLUser y)
+        {
+            if (_epoch)
             {
-                return y.fullName.CompareTo(x.fullName);
+                var epoch = LastSeenHelper.GetLastSeen(y).Item2.CompareTo(LastSeenHelper.GetLastSeen(x).Item2);
+                if (epoch == 0)
+                {
+                    var fullName = x.FullName.CompareTo(y.FullName);
+                    if (fullName == 0)
+                    {
+                        return y.Id.CompareTo(x.Id);
+                    }
+
+                    return fullName;
+                }
+
+                return epoch;
             }
+            else
+            {
+                var fullName = x.FullName.CompareTo(y.FullName);
+                if (fullName == 0)
+                {
+                    return y.Id.CompareTo(x.Id);
+                }
 
-            return epoch;
-
-            //var epoch = y.lastSeenEpoch - x.lastSeenEpoch;
-            //if (epoch == 0)
-            //{
-            //    return x.fullName.CompareTo(y.fullName);
-            //}
-
-            //return epoch;
+                return fullName;
+            }
         }
     }
 }

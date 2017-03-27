@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Messages
 {
 	/// <summary>
-	/// RCP method messages.getArchivedStickers
+	/// RCP method messages.getArchivedStickers.
+	/// Returns <see cref="Telegram.Api.TL.TLMessagesArchivedStickers"/>
 	/// </summary>
 	public partial class TLMessagesGetArchivedStickers : TLObject
 	{
@@ -21,28 +22,26 @@ namespace Telegram.Api.TL.Methods.Messages
 		public Int32 Limit { get; set; }
 
 		public TLMessagesGetArchivedStickers() { }
-		public TLMessagesGetArchivedStickers(TLBinaryReader from, bool cache = false)
+		public TLMessagesGetArchivedStickers(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesGetArchivedStickers; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
 			OffsetId = from.ReadInt64();
 			Limit = from.ReadInt32();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x57F17692);
 			to.Write((Int32)Flags);
 			to.Write(OffsetId);
 			to.Write(Limit);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

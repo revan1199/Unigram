@@ -8,36 +8,40 @@ using Telegram.Api.Helpers;
 
 namespace Telegram.Api.TL
 {
-    public partial class TLChat : ITLReadMaxId, INotifyPropertyChanged
+    public partial class TLChat : ITLReadMaxId, ITLInputPeer
     {
-        public event PropertyChangedEventHandler PropertyChanged;
-        public override void RaisePropertyChanged(string propertyName)
+        public override void Update(TLChatBase chatBase)
         {
-            Execute.OnUIThread(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
-        }
+            base.Update(chatBase);
 
-        public override void Update(TLChatBase chat)
-        {
-            base.Update(chat);
-
-            var c = chat as TLChat;
-            if (c != null)
+            var chat = chatBase as TLChat;
+            if (chat != null)
             {
-                Title = c.Title;
-                if (Photo.GetType() != c.Photo.GetType())
+                Title = chat.Title;
+                if (Photo.GetType() != chat.Photo.GetType())
                 {
-                    Photo = c.Photo;    // при удалении фото чата не обновляется UI при _photo = c.Photo
+                    Photo = chat.Photo;    // при удалении фото чата не обновляется UI при _photo = c.Photo
                 }
                 else
                 {
-                    Photo.Update(c.Photo);
+                    Photo.Update(chat.Photo);
                 }
-                ParticipantsCount = c.ParticipantsCount;
-                Date = c.Date;
-                IsLeft = c.IsLeft;
-                Version = c.Version;
+                ParticipantsCount = chat.ParticipantsCount;
+                Date = chat.Date;
+                IsLeft = chat.IsLeft;
+                Version = chat.Version;
 
-                Flags = c.Flags;
+                Flags = chat.Flags;
+
+                if (chat.ReadInboxMaxId != 0 && (ReadInboxMaxId == 0 || ReadInboxMaxId < chat.ReadInboxMaxId))
+                {
+                    ReadInboxMaxId = chat.ReadInboxMaxId;
+                }
+                if (chat.ReadOutboxMaxId != 0 && (ReadOutboxMaxId == 0 || ReadOutboxMaxId < chat.ReadOutboxMaxId))
+                {
+                    ReadOutboxMaxId = chat.ReadOutboxMaxId;
+                }
+
                 //if (c.CustomFlags != null)
                 //{
                 //    CustomFlags = c.CustomFlags;
@@ -49,16 +53,21 @@ namespace Telegram.Api.TL
 
         public int ReadOutboxMaxId { get; set; }
 
-        public override void ReadFromCache(TLBinaryReader from)
-        {
-            ReadInboxMaxId = from.ReadInt32();
-            ReadOutboxMaxId = from.ReadInt32();
-        }
+        //public override void ReadFromCache(TLBinaryReader from)
+        //{
+        //    ReadInboxMaxId = from.ReadInt32();
+        //    ReadOutboxMaxId = from.ReadInt32();
+        //}
 
-        public override void WriteToCache(TLBinaryWriter to)
+        //public override void WriteToCache(TLBinaryWriter to)
+        //{
+        //    to.Write(ReadInboxMaxId);
+        //    to.Write(ReadOutboxMaxId);
+        //}
+
+        public override TLInputPeerBase ToInputPeer()
         {
-            to.Write(ReadInboxMaxId);
-            to.Write(ReadOutboxMaxId);
+            return new TLInputPeerChat { ChatId = Id };
         }
     }
 }

@@ -12,6 +12,7 @@ using Org.BouncyCastle.Utilities.Net;
 using Telegram.Api.Extensions;
 using Telegram.Api.Helpers;
 using Telegram.Logs;
+using System.Diagnostics;
 
 namespace Telegram.Api.Transport
 {
@@ -62,7 +63,7 @@ namespace Telegram.Api.Transport
                 WRITE_LOG("TCPTransportWinRT.ConnectAsync " + status, ex);
 
                 var error = SocketError.GetStatus(ex.HResult);
-                faultCallback.SafeInvoke(new TcpTransportResult(ex));
+                faultCallback?.Invoke(new TcpTransportResult(ex));
                 return false;
             }
 
@@ -82,7 +83,7 @@ namespace Telegram.Api.Transport
                 var status = SocketError.GetStatus(ex.HResult);
                 WRITE_LOG("TCPTransportWinRT.SendAsync " + status, ex);
 
-                faultCallback.SafeInvoke(new TcpTransportResult(ex));
+                faultCallback?.Invoke(new TcpTransportResult(ex));
                 return false;
             }
 
@@ -205,7 +206,7 @@ namespace Telegram.Api.Transport
                 var sendPacketResult = await SendAsync(_timeout, CreatePacket(data), faultCallback);
                 if (!sendPacketResult) return;
 
-                callback.SafeInvoke(true);
+                callback?.Invoke(true);
             });
         }
 

@@ -6,7 +6,7 @@ Windows 10 (Mobile) introduced with the Universal Windows Platform a whole list 
 Build instructions:
 -
 * Go to https://my.telegram.org/apps and register a new app.
-* Create a new file inside `Unigram/Unigram/Unigram.Api` called `Constants.Secret.cs`:
+* Create a new file inside `Unigram/Unigram/Unigram.Api` and name it `Constants.Secret.cs`:
 ```csharp
 namespace Telegram.Api
 {
@@ -22,6 +22,23 @@ namespace Telegram.Api
     }
 }
 ```
+
+Dependencies:
+-
+The app uses the following NuGet packages to work:
+* [Autofac](https://www.nuget.org/packages/Autofac/)
+* [HockeySDK.UWP](https://www.nuget.org/packages/HockeySDK.UWP/)
+* [Microsoft.NETCore.UniversalWindowsPlatform](https://www.nuget.org/packages/Microsoft.NETCore.UniversalWindowsPlatform/)
+* [Microsoft.Toolkit.Uwp.UI.Animations](https://www.nuget.org/packages/Microsoft.Toolkit.Uwp.UI.Animations/)
+* [Microsoft.Xaml.Behaviors.Uwp.Managed](https://www.nuget.org/packages/Microsoft.Xaml.Behaviors.Uwp.Managed/)
+* [Newtonsoft.Json](https://www.nuget.org/packages/Newtonsoft.Json/)
+* [Portable.BouncyCastle](https://www.nuget.org/packages/Portable.BouncyCastle/1.8.1.1) (version 1.8.1.1)
+* [System.Reactive](https://www.nuget.org/packages/System.Reactive/)
+* [Template10](https://www.nuget.org/packages/Template10/)
+* [Universal.WinSQLite](https://www.nuget.org/packages/Universal.WinSQLite/)
+* [Win2D.uwp](https://www.nuget.org/packages/Win2D.uwp/)
+
+The project also relies on `libogg`, `libopus`, `libopusfile` and `libwebp` that are included in the repository.
 
 Our main goal:
 -
@@ -48,20 +65,21 @@ Milestones:
 (These are subject to change!)
 
 Completed:
-
+-	Design UI and build XAML-mockups
+-	Build code to communicate with Telegram-servers
+-	Implement Quick Notifications
+-	Make the mockups functional
+-	Build Live-Tiles
+-	Allow for muting chats
 
 Currently:
--	Design UI and build XAML-mockups
+-   Send medias
+-   Stickers panel
 
 Future:
--	Build code to communicate with Telegram-servers
--	Make the mockups functional
 -	Build background handlers
 -	Set user settings
 -	Allow for sharing pictures
--	Build Live-Tiles
--	Implement Quick Notifications
--	Allow for muting chats
 -	Future updates…
 
 =================================================================
@@ -91,3 +109,5 @@ UWP-specific:
 -	Share contracts
 -	Integrate with the People Hub
 -	And more…
+
+[SQLite]:https://marketplace.visualstudio.com/items?itemName=SQLiteDevelopmentTeam.SQLiteforUniversalWindowsPlatform

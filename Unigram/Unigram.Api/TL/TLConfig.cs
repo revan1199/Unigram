@@ -8,9 +8,11 @@ namespace Telegram.Api.TL
 		[Flags]
 		public enum Flag : Int32
 		{
+			PhoneCallsEnabled = (1 << 1),
 			TmpSessions = (1 << 0),
 		}
 
+		public bool IsPhoneCallsEnabled { get { return Flags.HasFlag(Flag.PhoneCallsEnabled); } set { Flags = value ? (Flags | Flag.PhoneCallsEnabled) : (Flags & ~Flag.PhoneCallsEnabled); } }
 		public bool HasTmpSessions { get { return Flags.HasFlag(Flag.TmpSessions); } set { Flags = value ? (Flags | Flag.TmpSessions) : (Flags & ~Flag.TmpSessions); } }
 
 		public Flag Flags { get; set; }
@@ -20,7 +22,7 @@ namespace Telegram.Api.TL
 		public Int32 ThisDC { get; set; }
 		public TLVector<TLDCOption> DCOptions { get; set; }
 		public Int32 ChatSizeMax { get; set; }
-		public Int32 MegagroupSizeMax { get; set; }
+		public Int32 MegaGroupSizeMax { get; set; }
 		public Int32 ForwardedCountMax { get; set; }
 		public Int32 OnlineUpdatePeriodMs { get; set; }
 		public Int32 OfflineBlurTimeoutMs { get; set; }
@@ -36,26 +38,31 @@ namespace Telegram.Api.TL
 		public Int32 RatingEDecay { get; set; }
 		public Int32 StickersRecentLimit { get; set; }
 		public Int32? TmpSessions { get; set; }
+		public Int32 PinnedDialogsCountMax { get; set; }
+		public Int32 CallReceiveTimeoutMs { get; set; }
+		public Int32 CallRingTimeoutMs { get; set; }
+		public Int32 CallConnectTimeoutMs { get; set; }
+		public Int32 CallPacketTimeoutMs { get; set; }
 		public TLVector<TLDisabledFeature> DisabledFeatures { get; set; }
 
 		public TLConfig() { }
-		public TLConfig(TLBinaryReader from, bool cache = false)
+		public TLConfig(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.Config; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
 			Date = from.ReadInt32();
 			Expires = from.ReadInt32();
 			TestMode = from.ReadBoolean();
 			ThisDC = from.ReadInt32();
-			DCOptions = TLFactory.Read<TLVector<TLDCOption>>(from, cache);
+			DCOptions = TLFactory.Read<TLVector<TLDCOption>>(from);
 			ChatSizeMax = from.ReadInt32();
-			MegagroupSizeMax = from.ReadInt32();
+			MegaGroupSizeMax = from.ReadInt32();
 			ForwardedCountMax = from.ReadInt32();
 			OnlineUpdatePeriodMs = from.ReadInt32();
 			OfflineBlurTimeoutMs = from.ReadInt32();
@@ -71,23 +78,27 @@ namespace Telegram.Api.TL
 			RatingEDecay = from.ReadInt32();
 			StickersRecentLimit = from.ReadInt32();
 			if (HasTmpSessions) TmpSessions = from.ReadInt32();
-			DisabledFeatures = TLFactory.Read<TLVector<TLDisabledFeature>>(from, cache);
-			if (cache) ReadFromCache(from);
+			PinnedDialogsCountMax = from.ReadInt32();
+			CallReceiveTimeoutMs = from.ReadInt32();
+			CallRingTimeoutMs = from.ReadInt32();
+			CallConnectTimeoutMs = from.ReadInt32();
+			CallPacketTimeoutMs = from.ReadInt32();
+			DisabledFeatures = TLFactory.Read<TLVector<TLDisabledFeature>>(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			UpdateFlags();
 
-			to.Write(0x9A6B2E2A);
+			to.Write(0x3AF6FB5F);
 			to.Write((Int32)Flags);
 			to.Write(Date);
 			to.Write(Expires);
 			to.Write(TestMode);
 			to.Write(ThisDC);
-			to.WriteObject(DCOptions, cache);
+			to.WriteObject(DCOptions);
 			to.Write(ChatSizeMax);
-			to.Write(MegagroupSizeMax);
+			to.Write(MegaGroupSizeMax);
 			to.Write(ForwardedCountMax);
 			to.Write(OnlineUpdatePeriodMs);
 			to.Write(OfflineBlurTimeoutMs);
@@ -103,8 +114,12 @@ namespace Telegram.Api.TL
 			to.Write(RatingEDecay);
 			to.Write(StickersRecentLimit);
 			if (HasTmpSessions) to.Write(TmpSessions.Value);
-			to.WriteObject(DisabledFeatures, cache);
-			if (cache) WriteToCache(to);
+			to.Write(PinnedDialogsCountMax);
+			to.Write(CallReceiveTimeoutMs);
+			to.Write(CallRingTimeoutMs);
+			to.Write(CallConnectTimeoutMs);
+			to.Write(CallPacketTimeoutMs);
+			to.WriteObject(DisabledFeatures);
 		}
 
 		private void UpdateFlags()

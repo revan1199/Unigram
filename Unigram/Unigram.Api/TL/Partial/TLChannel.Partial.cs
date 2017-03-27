@@ -8,7 +8,7 @@ using Telegram.Api.Helpers;
 
 namespace Telegram.Api.TL
 {
-    public partial class TLChannel : ITLReadMaxId, INotifyPropertyChanged
+    public partial class TLChannel : ITLReadMaxId, ITLInputPeer
     {
         public Int32 AdminsCount { get; set; }
 
@@ -50,22 +50,44 @@ namespace Telegram.Api.TL
             }
         }
 
-        public override void ReadFromCache(TLBinaryReader from)
+        public override void Update(TLChatBase chatBase)
         {
-            ((ITLReadMaxId)this).ReadInboxMaxId = from.ReadInt32();
-            ((ITLReadMaxId)this).ReadOutboxMaxId = from.ReadInt32();
+            base.Update(chatBase);
+
+            var channel = chatBase as TLChannel;
+            if (channel != null)
+            {
+                if (channel.ReadInboxMaxId != 0 && (ReadInboxMaxId == 0 || ReadInboxMaxId < channel.ReadInboxMaxId))
+                {
+                    ReadInboxMaxId = channel.ReadInboxMaxId;
+                }
+                if (channel.ReadOutboxMaxId != 0 && (ReadOutboxMaxId == 0 || ReadOutboxMaxId < channel.ReadOutboxMaxId))
+                {
+                    ReadOutboxMaxId = channel.ReadOutboxMaxId;
+                }
+            }
         }
 
-        public override void WriteToCache(TLBinaryWriter to)
+        //public override void ReadFromCache(TLBinaryReader from)
+        //{
+        //    ((ITLReadMaxId)this).ReadInboxMaxId = from.ReadInt32();
+        //    ((ITLReadMaxId)this).ReadOutboxMaxId = from.ReadInt32();
+        //}
+
+        //public override void WriteToCache(TLBinaryWriter to)
+        //{
+        //    to.Write(((ITLReadMaxId)this).ReadInboxMaxId);
+        //    to.Write(((ITLReadMaxId)this).ReadOutboxMaxId);
+        //}
+
+        public override TLInputPeerBase ToInputPeer()
         {
-            to.Write(((ITLReadMaxId)this).ReadInboxMaxId);
-            to.Write(((ITLReadMaxId)this).ReadOutboxMaxId);
+            return new TLInputPeerChannel { ChannelId = Id, AccessHash = AccessHash.Value };
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-        public override void RaisePropertyChanged(string propertyName)
+        public TLInputChannelBase ToInputChannel()
         {
-            Execute.OnUIThread(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
+            return new TLInputChannel { ChannelId = Id, AccessHash = AccessHash.Value };
         }
     }
 }

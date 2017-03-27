@@ -85,6 +85,8 @@
     <ClCompile Include="MediaSource.cpp">
       <Filter>MediaFoundation</Filter>
     </ClCompile>
+    <ClCompile Include="NativeUtils.cpp" />
+    <ClCompile Include="PlaceholderImageSource.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -171,6 +173,11 @@
     </ClInclude>
     <ClInclude Include="MediaSink.h">
       <Filter>MediaFoundation</Filter>
+    </ClInclude>
+    <ClInclude Include="NativeUtils.h" />
+    <ClInclude Include="PlaceholderImageSource.h" />
+    <ClInclude Include="Helpers\DirectXEx.h">
+      <Filter>Helpers</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

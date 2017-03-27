@@ -90,7 +90,7 @@ namespace Telegram.Api.Services.Cache
         {
             if (dialog != null)
             {
-                DialogsContext[dialog.Index] = dialog;
+                DialogsContext[dialog.Id] = dialog;
 
                 var topMessage = (TLMessageCommonBase) dialog.TopMessageItem;
 
@@ -159,8 +159,7 @@ namespace Telegram.Api.Services.Cache
         {
             if (message.Id != 0)
             {
-                TLPeerChannel peerChannel;
-                if (TLUtils.IsChannelMessage(message, out peerChannel))
+                if (TLUtils.IsChannelMessage(message, out TLPeerChannel peerChannel))
                 {
                     var channelContext = ChannelsContext[peerChannel.Id];
                     if (channelContext != null)
@@ -196,8 +195,7 @@ namespace Telegram.Api.Services.Cache
         {
             if (message.Id != 0)
             {
-                TLPeerChannel peerChannel;
-                if (TLUtils.IsChannelMessage(message, out peerChannel))
+                if (TLUtils.IsChannelMessage(message, out TLPeerChannel peerChannel))
                 {
                     var channelContext = ChannelsContext[peerChannel.Id];
                     if (channelContext == null)
@@ -240,6 +238,12 @@ namespace Telegram.Api.Services.Cache
         {
             if (user != null)
             {
+                // TODO: remove
+                if (user is TLUser userFull && userFull.Id.Equals(38475861))
+                {
+                    userFull.IsVerified = true;
+                }
+
                 UsersContext[user.Id] = user;
             }
         }
@@ -248,6 +252,12 @@ namespace Telegram.Api.Services.Cache
         {
             if (chat != null)
             {
+                // TODO: remove
+                if (chat is TLChannel channel && (channel.Id.Equals(1060755082) || channel.Id.Equals(1057176757)))
+                {
+                    channel.IsVerified = true;
+                }
+
                 ChatsContext[chat.Id] = chat;
             }
         }
@@ -447,8 +457,7 @@ namespace Telegram.Api.Services.Cache
                     // в бродкастах дата у всех сообщений совпадает: правильный порядок можно определить по индексу сообщения
                     if (Dialogs[i].GetDateIndex() == dateIndex)
                     {
-                        var currentMessageId = Dialogs[i].TopMessage != null ? Dialogs[i].TopMessage : 0;
-
+                        var currentMessageId = Dialogs[i].TopMessage;
                         if (currentMessageId != 0 && messageId != 0)
                         {
                             if (currentMessageId < messageId)
@@ -535,7 +544,7 @@ namespace Telegram.Api.Services.Cache
                     }
                     else
                     {
-                        TLObject with;
+                        ITLDialogWith with;
 
                         TLPeerBase peer;
 
@@ -624,7 +633,7 @@ namespace Telegram.Api.Services.Cache
                             }
 
                             Dialogs.Insert(index, addingDialog);
-                            DialogsContext[addingDialog.Index] = addingDialog;
+                            DialogsContext[addingDialog.Id] = addingDialog;
                         }
                         if (_eventAggregator != null && notifyNewDialogs)
                         {
@@ -1173,7 +1182,7 @@ namespace Telegram.Api.Services.Cache
                         {
                             if (lastMessage == null)
                             {
-                                DialogsContext.Remove(dialogBase.Index);
+                                DialogsContext.Remove(dialogBase.Id);
                                 Dialogs.Remove(dialogBase);
                                 isDialogRemoved = true;
                             }
@@ -1262,7 +1271,7 @@ namespace Telegram.Api.Services.Cache
 
                     if (dialog.Messages.Count == 0)
                     {
-                        DialogsContext.Remove(dialogBase.Index);
+                        DialogsContext.Remove(dialogBase.Id);
                         Dialogs.Remove(dialogBase);
                         isDialogRemoved = true;
                     }
@@ -1353,7 +1362,7 @@ namespace Telegram.Api.Services.Cache
 
                     if (dialog.Messages.Count == 0)
                     {
-                        DialogsContext.Remove(dialogBase.Index);
+                        DialogsContext.Remove(dialogBase.Id);
                         Dialogs.Remove(dialogBase);
                         isDialogRemoved = true;
                     }
@@ -1424,7 +1433,7 @@ namespace Telegram.Api.Services.Cache
 
                             if (dialog.Messages.Count == 0)
                             {
-                                DialogsContext.Remove(dialogBase.Index);
+                                DialogsContext.Remove(dialogBase.Id);
                                 Dialogs.Remove(dialogBase);
                                 isDialogRemoved = true;
                             }
@@ -1492,7 +1501,10 @@ namespace Telegram.Api.Services.Cache
 
         public void DeleteUser(int? id)
         {
-            UsersContext.Remove(id.Value);
+            if (id.HasValue)
+            {
+                UsersContext.Remove(id.Value);
+            }
         }
 
         public void DeleteUser(TLUserBase user)
@@ -1552,7 +1564,10 @@ namespace Telegram.Api.Services.Cache
 
         public void DeleteChat(int? id)
         {
-            ChatsContext.Remove(id.Value);
+            if (id.HasValue)
+            {
+                ChatsContext.Remove(id.Value);
+            }
         }
 
         public void DeleteChat(TLChatBase chat)
@@ -1564,7 +1579,7 @@ namespace Telegram.Api.Services.Cache
         {
             lock (_dialogsSyncRoot)
             {
-                var dbDialog = Dialogs.FirstOrDefault(x => x.Index == dialog.Index);
+                var dbDialog = Dialogs.FirstOrDefault(x => x.Id == dialog.Id);
 
                 Dialogs.Remove(dbDialog);
             }
@@ -1622,7 +1637,7 @@ namespace Telegram.Api.Services.Cache
 
                     if (dialog.Messages.Count == 0)
                     {
-                        DialogsContext.Remove(dialogBase.Index);
+                        DialogsContext.Remove(dialogBase.Id);
                         Dialogs.Remove(dialogBase);
                         isDialogRemoved = true;
                     }
@@ -1728,7 +1743,7 @@ namespace Telegram.Api.Services.Cache
                     Dialogs = new ObservableCollection<TLDialog>(dialogs);
                     Log(string.Format("Open dialogs time ({0}) : {1}", dialogs.Count, dialogsTimer.Elapsed));
 
-                    DialogsContext = new Context<TLDialog>(Dialogs, x => x.Index);
+                    DialogsContext = new Context<TLDialog>(Dialogs, x => x.Id);
                     
                     openDialogsHandle.Set();
                 });
@@ -1839,7 +1854,7 @@ namespace Telegram.Api.Services.Cache
                             var topMessage = dialog.TopMessageItem != null ? dialog.TopMessageItem.Id : new int?();
                             if (topMessage == null)
                             {
-                                dialog.TopMessageRandomId = dialog.TopMessageItem != null ? dialog.TopMessageItem.RandomId : null;
+                                dialog.TopMessageRandomId = dialog.TopMessageItem?.RandomId;
                             }
                             else
                             {

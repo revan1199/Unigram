@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Channels
 {
 	/// <summary>
-	/// RCP method channels.exportMessageLink
+	/// RCP method channels.exportMessageLink.
+	/// Returns <see cref="Telegram.Api.TL.TLExportedMessageLink"/>
 	/// </summary>
 	public partial class TLChannelsExportMessageLink : TLObject
 	{
@@ -12,26 +13,24 @@ namespace Telegram.Api.TL.Methods.Channels
 		public Int32 Id { get; set; }
 
 		public TLChannelsExportMessageLink() { }
-		public TLChannelsExportMessageLink(TLBinaryReader from, bool cache = false)
+		public TLChannelsExportMessageLink(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.ChannelsExportMessageLink; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			Channel = TLFactory.Read<TLInputChannelBase>(from, cache);
+			Channel = TLFactory.Read<TLInputChannelBase>(from);
 			Id = from.ReadInt32();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xC846D22D);
-			to.WriteObject(Channel, cache);
+			to.WriteObject(Channel);
 			to.Write(Id);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

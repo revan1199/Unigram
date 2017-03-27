@@ -8,12 +8,12 @@ namespace Telegram.Api.TL
 		[Flags]
 		public enum Flag : Int32
 		{
-			NoWebpage = (1 << 1),
+			NoWebPage = (1 << 1),
 			ReplyToMsgId = (1 << 0),
 			Entities = (1 << 3),
 		}
 
-		public bool IsNoWebpage { get { return Flags.HasFlag(Flag.NoWebpage); } set { Flags = value ? (Flags | Flag.NoWebpage) : (Flags & ~Flag.NoWebpage); } }
+		public bool IsNoWebPage { get { return Flags.HasFlag(Flag.NoWebPage); } set { Flags = value ? (Flags | Flag.NoWebPage) : (Flags & ~Flag.NoWebPage); } }
 		public bool HasReplyToMsgId { get { return Flags.HasFlag(Flag.ReplyToMsgId); } set { Flags = value ? (Flags | Flag.ReplyToMsgId) : (Flags & ~Flag.ReplyToMsgId); } }
 		public bool HasEntities { get { return Flags.HasFlag(Flag.Entities); } set { Flags = value ? (Flags | Flag.Entities) : (Flags & ~Flag.Entities); } }
 
@@ -24,24 +24,23 @@ namespace Telegram.Api.TL
 		public Int32 Date { get; set; }
 
 		public TLDraftMessage() { }
-		public TLDraftMessage(TLBinaryReader from, bool cache = false)
+		public TLDraftMessage(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.DraftMessage; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
 			if (HasReplyToMsgId) ReplyToMsgId = from.ReadInt32();
 			Message = from.ReadString();
-			if (HasEntities) Entities = TLFactory.Read<TLVector<TLMessageEntityBase>>(from, cache);
+			if (HasEntities) Entities = TLFactory.Read<TLVector<TLMessageEntityBase>>(from);
 			Date = from.ReadInt32();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			UpdateFlags();
 
@@ -49,9 +48,8 @@ namespace Telegram.Api.TL
 			to.Write((Int32)Flags);
 			if (HasReplyToMsgId) to.Write(ReplyToMsgId.Value);
 			to.Write(Message);
-			if (HasEntities) to.WriteObject(Entities, cache);
+			if (HasEntities) to.WriteObject(Entities);
 			to.Write(Date);
-			if (cache) WriteToCache(to);
 		}
 
 		private void UpdateFlags()

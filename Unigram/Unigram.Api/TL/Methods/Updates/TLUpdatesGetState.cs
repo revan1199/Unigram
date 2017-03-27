@@ -4,27 +4,26 @@ using System;
 namespace Telegram.Api.TL.Methods.Updates
 {
 	/// <summary>
-	/// RCP method updates.getState
+	/// RCP method updates.getState.
+	/// Returns <see cref="Telegram.Api.TL.TLUpdatesState"/>
 	/// </summary>
 	public partial class TLUpdatesGetState : TLObject
 	{
 		public TLUpdatesGetState() { }
-		public TLUpdatesGetState(TLBinaryReader from, bool cache = false)
+		public TLUpdatesGetState(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.UpdatesGetState; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xEDD4882A);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

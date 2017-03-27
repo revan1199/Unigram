@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Telegram.Api.TL;
 
@@ -33,7 +31,7 @@ namespace Telegram.Api.Services.FileManager
 
         public List<UploadablePart> Parts { get; set; }
 
-        public bool Canceled { get; set; }
+        public bool IsCancelled { get; set; }
 
         internal TaskCompletionSource<UploadableItem> Callback { get; set; }
 
@@ -71,6 +69,22 @@ namespace Telegram.Api.Services.FileManager
             Owner = owner;
             FileName = isoFileName;
             FileLength = isoFileLength;
+        }
+
+        public TLInputFileBase ToInputFile()
+        {
+            return IsSmallFile ? (TLInputFileBase)new TLInputFile
+            {
+                Id = FileId,
+                Md5Checksum = string.Empty,
+                Name = FileName,
+                Parts = Parts.Count
+            } : new TLInputFileBig
+            {
+                Id = FileId,
+                Name = FileName,
+                Parts = Parts.Count
+            };
         }
     }
 }

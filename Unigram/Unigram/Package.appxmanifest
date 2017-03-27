@@ -39,7 +39,23 @@
             <uap:DataFormat>Text</uap:DataFormat>
             <uap:DataFormat>URI</uap:DataFormat>
             <uap:DataFormat>StorageItems</uap:DataFormat>
+            <uap:DataFormat>Bitmap</uap:DataFormat>
           </uap:ShareTarget>
+        </uap:Extension>
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="ms-contact-profile">
+            <uap:DisplayName>Unigram</uap:DisplayName>
+          </uap:Protocol>
+        </uap:Extension>
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="ms-ipmessaging">
+            <uap:DisplayName>Unigram</uap:DisplayName>
+          </uap:Protocol>
+        </uap:Extension>
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="ms-voip-call">
+            <uap:DisplayName>Unigram</uap:DisplayName>
+          </uap:Protocol>
         </uap:Extension>
         <uap:Extension Category="windows.protocol">
           <uap:Protocol Name="tg" />
@@ -49,7 +65,7 @@
             <Task Type="systemEvent" />
           </BackgroundTasks>
         </Extension>
-        <Extension Category="windows.backgroundTasks" EntryPoint="Unigram.Tasks.NotificationTask">
+        <Extension Category="windows.backgroundTasks" EntryPoint="Unigram.Native.Tasks.NotificationTask">
           <BackgroundTasks>
             <Task Type="pushNotification" />
           </BackgroundTasks>
@@ -68,13 +84,22 @@
         <ActivatableClass ActivatableClassId="Unigram.Native.GIFByteStreamHandler" ThreadingModel="both" />
       </InProcessServer>
     </Extension>
+    <Extension Category="windows.activatableClass.inProcessServer">
+      <InProcessServer>
+        <Path>Unigram.Native.dll</Path>
+        <ActivatableClass ActivatableClassId="Unigram.Native.OpusByteStreamHandler" ThreadingModel="both" />
+      </InProcessServer>
+    </Extension>
   </Extensions>
   <Capabilities>
     <Capability Name="internetClient" />
     <Capability Name="internetClientServer" />
     <uap:Capability Name="removableStorage" />
     <uap:Capability Name="picturesLibrary" />
-    <rescap:Capability Name="runFullTrust" />
+    <uap:Capability Name="voipCall" />
+    <uap:Capability Name="contacts" />
+    <!--<rescap:Capability Name="runFullTrust" />-->
     <DeviceCapability Name="location" />
+    <DeviceCapability Name="microphone" />
   </Capabilities>
 </Package>

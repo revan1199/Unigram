@@ -4,27 +4,26 @@ using System;
 namespace Telegram.Api.TL.Methods.Help
 {
 	/// <summary>
-	/// RCP method help.getNearestDc
+	/// RCP method help.getNearestDc.
+	/// Returns <see cref="Telegram.Api.TL.TLNearestDC"/>
 	/// </summary>
 	public partial class TLHelpGetNearestDC : TLObject
 	{
 		public TLHelpGetNearestDC() { }
-		public TLHelpGetNearestDC(TLBinaryReader from, bool cache = false)
+		public TLHelpGetNearestDC(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.HelpGetNearestDC; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x1FB33026);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

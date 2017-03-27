@@ -6,28 +6,27 @@ namespace Telegram.Api.TL
 	public partial class TLInputPeerChannel : TLInputPeerBase 
 	{
 		public Int32 ChannelId { get; set; }
+		public Int64 AccessHash { get; set; }
 
 		public TLInputPeerChannel() { }
-		public TLInputPeerChannel(TLBinaryReader from, bool cache = false)
+		public TLInputPeerChannel(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.InputPeerChannel; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			ChannelId = from.ReadInt32();
 			AccessHash = from.ReadInt64();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x20ADAEF8);
 			to.Write(ChannelId);
 			to.Write(AccessHash);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

@@ -4,31 +4,30 @@ using System;
 namespace Telegram.Api.TL.Methods.Messages
 {
 	/// <summary>
-	/// RCP method messages.importChatInvite
+	/// RCP method messages.importChatInvite.
+	/// Returns <see cref="Telegram.Api.TL.TLUpdatesBase"/>
 	/// </summary>
 	public partial class TLMessagesImportChatInvite : TLObject
 	{
 		public String Hash { get; set; }
 
 		public TLMessagesImportChatInvite() { }
-		public TLMessagesImportChatInvite(TLBinaryReader from, bool cache = false)
+		public TLMessagesImportChatInvite(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesImportChatInvite; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Hash = from.ReadString();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x6C50051C);
 			to.Write(Hash);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

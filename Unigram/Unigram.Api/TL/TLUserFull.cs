@@ -9,12 +9,14 @@ namespace Telegram.Api.TL
 		public enum Flag : Int32
 		{
 			Blocked = (1 << 0),
+			PhoneCallsAvailable = (1 << 4),
 			About = (1 << 1),
 			ProfilePhoto = (1 << 2),
 			BotInfo = (1 << 3),
 		}
 
 		public bool IsBlocked { get { return Flags.HasFlag(Flag.Blocked); } set { Flags = value ? (Flags | Flag.Blocked) : (Flags & ~Flag.Blocked); } }
+		public bool IsPhoneCallsAvailable { get { return Flags.HasFlag(Flag.PhoneCallsAvailable); } set { Flags = value ? (Flags | Flag.PhoneCallsAvailable) : (Flags & ~Flag.PhoneCallsAvailable); } }
 		public bool HasAbout { get { return Flags.HasFlag(Flag.About); } set { Flags = value ? (Flags | Flag.About) : (Flags & ~Flag.About); } }
 		public bool HasProfilePhoto { get { return Flags.HasFlag(Flag.ProfilePhoto); } set { Flags = value ? (Flags | Flag.ProfilePhoto) : (Flags & ~Flag.ProfilePhoto); } }
 		public bool HasBotInfo { get { return Flags.HasFlag(Flag.BotInfo); } set { Flags = value ? (Flags | Flag.BotInfo) : (Flags & ~Flag.BotInfo); } }
@@ -26,40 +28,41 @@ namespace Telegram.Api.TL
 		public TLPhotoBase ProfilePhoto { get; set; }
 		public TLPeerNotifySettingsBase NotifySettings { get; set; }
 		public TLBotInfo BotInfo { get; set; }
+		public Int32 CommonChatsCount { get; set; }
 
 		public TLUserFull() { }
-		public TLUserFull(TLBinaryReader from, bool cache = false)
+		public TLUserFull(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.UserFull; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
-			User = TLFactory.Read<TLUserBase>(from, cache);
+			User = TLFactory.Read<TLUserBase>(from);
 			if (HasAbout) About = from.ReadString();
-			Link = TLFactory.Read<TLContactsLink>(from, cache);
-			if (HasProfilePhoto) ProfilePhoto = TLFactory.Read<TLPhotoBase>(from, cache);
-			NotifySettings = TLFactory.Read<TLPeerNotifySettingsBase>(from, cache);
-			if (HasBotInfo) BotInfo = TLFactory.Read<TLBotInfo>(from, cache);
-			if (cache) ReadFromCache(from);
+			Link = TLFactory.Read<TLContactsLink>(from);
+			if (HasProfilePhoto) ProfilePhoto = TLFactory.Read<TLPhotoBase>(from);
+			NotifySettings = TLFactory.Read<TLPeerNotifySettingsBase>(from);
+			if (HasBotInfo) BotInfo = TLFactory.Read<TLBotInfo>(from);
+			CommonChatsCount = from.ReadInt32();
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			UpdateFlags();
 
-			to.Write(0x5932FC03);
+			to.Write(0xF220F3F);
 			to.Write((Int32)Flags);
-			to.WriteObject(User, cache);
+			to.WriteObject(User);
 			if (HasAbout) to.Write(About);
-			to.WriteObject(Link, cache);
-			if (HasProfilePhoto) to.WriteObject(ProfilePhoto, cache);
-			to.WriteObject(NotifySettings, cache);
-			if (HasBotInfo) to.WriteObject(BotInfo, cache);
-			if (cache) WriteToCache(to);
+			to.WriteObject(Link);
+			if (HasProfilePhoto) to.WriteObject(ProfilePhoto);
+			to.WriteObject(NotifySettings);
+			if (HasBotInfo) to.WriteObject(BotInfo);
+			to.Write(CommonChatsCount);
 		}
 
 		private void UpdateFlags()

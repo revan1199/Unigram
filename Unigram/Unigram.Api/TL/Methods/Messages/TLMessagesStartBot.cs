@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Messages
 {
 	/// <summary>
-	/// RCP method messages.startBot
+	/// RCP method messages.startBot.
+	/// Returns <see cref="Telegram.Api.TL.TLUpdatesBase"/>
 	/// </summary>
 	public partial class TLMessagesStartBot : TLObject
 	{
@@ -14,30 +15,28 @@ namespace Telegram.Api.TL.Methods.Messages
 		public String StartParam { get; set; }
 
 		public TLMessagesStartBot() { }
-		public TLMessagesStartBot(TLBinaryReader from, bool cache = false)
+		public TLMessagesStartBot(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesStartBot; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			Bot = TLFactory.Read<TLInputUserBase>(from, cache);
-			Peer = TLFactory.Read<TLInputPeerBase>(from, cache);
+			Bot = TLFactory.Read<TLInputUserBase>(from);
+			Peer = TLFactory.Read<TLInputPeerBase>(from);
 			RandomId = from.ReadInt64();
 			StartParam = from.ReadString();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xE6DF7378);
-			to.WriteObject(Bot, cache);
-			to.WriteObject(Peer, cache);
+			to.WriteObject(Bot);
+			to.WriteObject(Peer);
 			to.Write(RandomId);
 			to.Write(StartParam);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

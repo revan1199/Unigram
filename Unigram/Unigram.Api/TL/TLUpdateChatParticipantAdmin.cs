@@ -5,33 +5,34 @@ namespace Telegram.Api.TL
 {
 	public partial class TLUpdateChatParticipantAdmin : TLUpdateBase 
 	{
+		public Int32 ChatId { get; set; }
+		public Int32 UserId { get; set; }
 		public Boolean IsAdmin { get; set; }
+		public Int32 Version { get; set; }
 
 		public TLUpdateChatParticipantAdmin() { }
-		public TLUpdateChatParticipantAdmin(TLBinaryReader from, bool cache = false)
+		public TLUpdateChatParticipantAdmin(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.UpdateChatParticipantAdmin; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			ChatId = from.ReadInt32();
 			UserId = from.ReadInt32();
 			IsAdmin = from.ReadBoolean();
 			Version = from.ReadInt32();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xB6901959);
 			to.Write(ChatId);
 			to.Write(UserId);
 			to.Write(IsAdmin);
 			to.Write(Version);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

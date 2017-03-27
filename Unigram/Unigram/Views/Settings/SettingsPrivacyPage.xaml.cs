@@ -34,5 +34,15 @@ namespace Unigram.Views.Settings
                 Frame.BackStack.RemoveAt(1);
             }
         }
+
+        private void Sessions_Click(object sender, RoutedEventArgs e)
+        {
+            Frame.Navigate(typeof(SettingsSessionsPage));
+        }
+
+        private void BlockedUsers_Click(object sender, RoutedEventArgs e)
+        {
+            Frame.Navigate(typeof(SettingsBlockedUsersPage));
+        }
     }
 }

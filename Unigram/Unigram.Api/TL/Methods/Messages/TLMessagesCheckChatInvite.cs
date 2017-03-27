@@ -4,31 +4,30 @@ using System;
 namespace Telegram.Api.TL.Methods.Messages
 {
 	/// <summary>
-	/// RCP method messages.checkChatInvite
+	/// RCP method messages.checkChatInvite.
+	/// Returns <see cref="Telegram.Api.TL.TLChatInviteBase"/>
 	/// </summary>
 	public partial class TLMessagesCheckChatInvite : TLObject
 	{
 		public String Hash { get; set; }
 
 		public TLMessagesCheckChatInvite() { }
-		public TLMessagesCheckChatInvite(TLBinaryReader from, bool cache = false)
+		public TLMessagesCheckChatInvite(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesCheckChatInvite; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Hash = from.ReadString();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x3EADB1BB);
 			to.Write(Hash);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

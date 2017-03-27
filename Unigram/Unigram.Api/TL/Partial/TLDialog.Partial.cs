@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Telegram.Api.Helpers;
 using Telegram.Api.Services;
+using Telegram.Helpers;
 using Windows.UI.Xaml;
 
 namespace Telegram.Api.TL
@@ -17,21 +18,32 @@ namespace Telegram.Api.TL
 
         public List<TLMessageBase> CommitMessages { get; set; } = new List<TLMessageBase>();
 
-        public override void ReadFromCache(TLBinaryReader from)
-        {
-            Messages = new ObservableCollection<TLMessageBase>(TLFactory.Read<TLVector<TLMessageBase>>(from, true));
-            CommitMessages = new List<TLMessageBase>(TLFactory.Read<TLVector<TLMessageBase>>(from, true));
-        }
+        //public override void ReadFromCache(TLBinaryReader from)
+        //{
+        //    Messages = new ObservableCollection<TLMessageBase>(TLFactory.Read<TLVector<TLMessageBase>>(from, true));
+        //    CommitMessages = new List<TLMessageBase>(TLFactory.Read<TLVector<TLMessageBase>>(from, true));
+        //}
 
-        public override void WriteToCache(TLBinaryWriter to)
-        {
-            to.WriteObject(new TLVector<TLMessageBase>(Messages), true);
-            to.WriteObject(new TLVector<TLMessageBase>(CommitMessages), true);
-        }
+        //public override void WriteToCache(TLBinaryWriter to)
+        //{
+        //    to.WriteObject(new TLVector<TLMessageBase>(Messages), true);
+        //    to.WriteObject(new TLVector<TLMessageBase>(CommitMessages), true);
+        //}
 
         public virtual int CountMessages()
         {
             return Messages.Count;
+        }
+
+        public TLInputPeerBase ToInputPeer()
+        {
+            var peer = With as ITLInputPeer;
+            if (peer != null)
+            {
+                return peer.ToInputPeer();
+            }
+
+            return null;
         }
 
         public virtual void Update(TLDialog dialog)
@@ -207,6 +219,11 @@ namespace Telegram.Api.TL
 
         public int GetDateIndexWithDraft()
         {
+            if (IsPinned)
+            {
+                return int.MaxValue - PinnedIndex;
+            }
+
             var dateIndex = GetDateIndex();
             var draft = Draft as TLDraftMessage;
             if (draft != null)
@@ -223,8 +240,8 @@ namespace Telegram.Api.TL
         }
 
 
-        public TLObject _with;
-        public TLObject With
+        public ITLDialogWith _with;
+        public ITLDialogWith With
         {
             get
             {
@@ -253,7 +270,7 @@ namespace Telegram.Api.TL
             }
         }
 
-        public int Index
+        public int Id
         {
             get { return Peer != null && Peer.Id != null ? Peer.Id : default(int); }
         }
@@ -274,90 +291,24 @@ namespace Telegram.Api.TL
             Execute.OnUIThread(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
         }
 
+        public int PinnedIndex { get; set; }
 
+        public bool IsSearchResult { get; set; }
 
-        private string _fullName;
-        public string FullName
+        public Visibility ChatBaseVisibility
         {
             get
             {
-                var userBase = With as TLUserBase;
-                if (userBase != null)
+                var chatType = Peer as TLPeerBase;
+                if (Peer.TypeId == TLType.PeerChat ||
+                    Peer.TypeId == TLType.PeerChannel)
                 {
-                    var user = With as TLUser;
-                    if (user != null && user.IsSelf)
-                    {
-                        return "You";
-                    }
-
-                    if (userBase.Id == 333000)
-                    {
-                        //return AppResources.AppName;
-                        return "Telegram";
-                    }
-
-                    if (userBase.Id == 777000)
-                    {
-                        //return AppResources.TelegramNotifications;
-                        return "Telegram";
-                    }
-
-                    //                    var userRequest = user as TLUserRequest;
-                    //                    if (userRequest != null)
-                    //                    {
-                    //#if WP8
-                    //                    //var phoneUtil = PhoneNumberUtil.GetInstance();
-                    //                    //try
-                    //                    //{
-                    //                    //    return phoneUtil.Format(phoneUtil.Parse("+" + user.Phone.Value, ""), PhoneNumberFormat.INTERNATIONAL);
-                    //                    //}
-                    //                    //catch (Exception e)
-                    //                    {
-                    //                        return "+" + user.Phone.Value;
-                    //                    }
-                    //#else
-                    //                        return "+" + user.Phone.Value;
-                    //#endif
-
-                    //                    }
-
-                    if (userBase is TLUserEmpty /*|| user is TLUserDeleted*/)
-                    {
-
-                    }
-
-                    return userBase.FullName.Trim();
+                    return Visibility.Visible;
                 }
-
-                var channel = With as TLChannel;
-                if (channel != null)
+                else
                 {
-                    return channel.Title.Trim();
+                    return Visibility.Collapsed;
                 }
-
-                var chat = With as TLChatBase;
-                if (chat != null)
-                {
-                    return chat.Title.Trim();
-                }
-
-                //var encryptedChat = With as TLEncryptedChatCommon;
-                //if (encryptedChat != null)
-                //{
-                //    var currentUserId = IoC.Get<IMTProtoService>().CurrentUserId;
-                //    var cache = IoC.Get<ICacheService>();
-
-                //    if (currentUserId.Value == encryptedChat.AdminId.Value)
-                //    {
-                //        var cachedParticipant = cache.GetUser(encryptedChat.ParticipantId);
-                //        return cachedParticipant != null ? cachedParticipant.FullName.Trim() : string.Empty;
-                //    }
-
-                //    var cachedAdmin = cache.GetUser(encryptedChat.AdminId);
-                //    return cachedAdmin != null ? cachedAdmin.FullName.Trim() : string.Empty;
-                //}
-
-                return With != null ? With.ToString() : string.Empty;
             }
         }
 
@@ -378,23 +329,6 @@ namespace Telegram.Api.TL
                 }
 
                 return Visibility.Collapsed;
-            }
-        }
-
-        public Visibility GroupChat
-        {
-            get
-            {
-                var chatType = Peer as TLPeerBase;
-                if (Peer.TypeId == TLType.PeerChat || 
-                    Peer.TypeId == TLType.PeerChannel)
-                {
-                    return Visibility.Visible;
-                }
-                else
-                {
-                    return Visibility.Collapsed;
-                }
             }
         }
 

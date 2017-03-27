@@ -154,9 +154,9 @@ namespace Telegram.Api.TL
                 RandomId = randomId,
                 ReplyToMsgId = replyToMsgId
             };
-            if (m.FromId != 0) m.HasFromId = true;
+            if (m.FromId != null) m.HasFromId = true;
             if (m.Media != null) m.HasMedia = true;
-            if (m.ReplyToMsgId != 0) m.HasReplyToMsgId = true;
+            if (m.ReplyToMsgId != null) m.HasReplyToMsgId = true;
 #else
             var m = new TLMessage
             {
@@ -564,7 +564,7 @@ namespace Telegram.Api.TL
                         {
                             using (var from = new TLBinaryReader(fileStream))
                             {
-                                return TLFactory.Read<T>(from, true);
+                                return TLFactory.Read<T>(from);
                             }
                         }
                     }
@@ -749,7 +749,7 @@ namespace Telegram.Api.TL
                     }
                 }
 
-                var container = obj.Query as TLMessageContainer;
+                var container = obj.Query as TLMsgContainer;
                 if (container != null)
                 {
                     foreach (var message in container.Messages)
@@ -758,6 +758,16 @@ namespace Telegram.Api.TL
                         if (result != null)
                         {
                             yield return (T)message.Query;
+                        }
+
+                        gzipData = message.Query as TLGzipPacked;
+                        if (gzipData != null)
+                        {
+                            result = gzipData.Query as T;
+                            if (result != null)
+                            {
+                                yield return result;
+                            }
                         }
                     }
                 }
@@ -770,6 +780,12 @@ namespace Telegram.Api.TL
             if (chat != null)
             {
                 return chat.ChatId;
+            }
+
+            var channel = inputPeer as TLInputPeerChannel;
+            if (channel != null)
+            {
+                return channel.ChannelId;
             }
 
             // TODO: is this needed?
@@ -969,6 +985,11 @@ namespace Telegram.Api.TL
         {
             try
             {
+                if (value.Length == 0)
+                {
+                    return null;
+                }
+
                 var intValue = Convert.ToInt32(value);
                 return intValue;
             }

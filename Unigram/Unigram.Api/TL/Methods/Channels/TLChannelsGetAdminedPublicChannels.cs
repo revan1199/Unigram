@@ -4,27 +4,26 @@ using System;
 namespace Telegram.Api.TL.Methods.Channels
 {
 	/// <summary>
-	/// RCP method channels.getAdminedPublicChannels
+	/// RCP method channels.getAdminedPublicChannels.
+	/// Returns <see cref="Telegram.Api.TL.TLMessagesChats"/>
 	/// </summary>
 	public partial class TLChannelsGetAdminedPublicChannels : TLObject
 	{
 		public TLChannelsGetAdminedPublicChannels() { }
-		public TLChannelsGetAdminedPublicChannels(TLBinaryReader from, bool cache = false)
+		public TLChannelsGetAdminedPublicChannels(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.ChannelsGetAdminedPublicChannels; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x8D8D82D7);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

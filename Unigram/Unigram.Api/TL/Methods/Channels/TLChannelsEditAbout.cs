@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Channels
 {
 	/// <summary>
-	/// RCP method channels.editAbout
+	/// RCP method channels.editAbout.
+	/// Returns <see cref="Telegram.Api.TL.TLBoolBase"/>
 	/// </summary>
 	public partial class TLChannelsEditAbout : TLObject
 	{
@@ -12,26 +13,24 @@ namespace Telegram.Api.TL.Methods.Channels
 		public String About { get; set; }
 
 		public TLChannelsEditAbout() { }
-		public TLChannelsEditAbout(TLBinaryReader from, bool cache = false)
+		public TLChannelsEditAbout(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.ChannelsEditAbout; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			Channel = TLFactory.Read<TLInputChannelBase>(from, cache);
+			Channel = TLFactory.Read<TLInputChannelBase>(from);
 			About = from.ReadString();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x13E27F1E);
-			to.WriteObject(Channel, cache);
+			to.WriteObject(Channel);
 			to.Write(About);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

@@ -15,7 +15,7 @@ namespace Telegram.Api.TL
 			Moderator = (1 << 4),
 			Broadcast = (1 << 5),
 			Verified = (1 << 7),
-			Megagroup = (1 << 8),
+			MegaGroup = (1 << 8),
 			Restricted = (1 << 9),
 			Democracy = (1 << 10),
 			Signatures = (1 << 11),
@@ -32,7 +32,7 @@ namespace Telegram.Api.TL
 		public bool IsModerator { get { return Flags.HasFlag(Flag.Moderator); } set { Flags = value ? (Flags | Flag.Moderator) : (Flags & ~Flag.Moderator); } }
 		public bool IsBroadcast { get { return Flags.HasFlag(Flag.Broadcast); } set { Flags = value ? (Flags | Flag.Broadcast) : (Flags & ~Flag.Broadcast); } }
 		public bool IsVerified { get { return Flags.HasFlag(Flag.Verified); } set { Flags = value ? (Flags | Flag.Verified) : (Flags & ~Flag.Verified); } }
-		public bool IsMegagroup { get { return Flags.HasFlag(Flag.Megagroup); } set { Flags = value ? (Flags | Flag.Megagroup) : (Flags & ~Flag.Megagroup); } }
+		public bool IsMegaGroup { get { return Flags.HasFlag(Flag.MegaGroup); } set { Flags = value ? (Flags | Flag.MegaGroup) : (Flags & ~Flag.MegaGroup); } }
 		public bool IsRestricted { get { return Flags.HasFlag(Flag.Restricted); } set { Flags = value ? (Flags | Flag.Restricted) : (Flags & ~Flag.Restricted); } }
 		public bool IsDemocracy { get { return Flags.HasFlag(Flag.Democracy); } set { Flags = value ? (Flags | Flag.Democracy) : (Flags & ~Flag.Democracy); } }
 		public bool IsSignatures { get { return Flags.HasFlag(Flag.Signatures); } set { Flags = value ? (Flags | Flag.Signatures) : (Flags & ~Flag.Signatures); } }
@@ -43,32 +43,35 @@ namespace Telegram.Api.TL
 
 		public Flag Flags { get; set; }
 		public Int64? AccessHash { get; set; }
+		public String Title { get; set; }
 		public String Username { get; set; }
+		public TLChatPhotoBase Photo { get; set; }
+		public Int32 Date { get; set; }
+		public Int32 Version { get; set; }
 		public String RestrictionReason { get; set; }
 
 		public TLChannel() { }
-		public TLChannel(TLBinaryReader from, bool cache = false)
+		public TLChannel(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.Channel; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
 			Id = from.ReadInt32();
 			if (HasAccessHash) AccessHash = from.ReadInt64();
 			Title = from.ReadString();
 			if (HasUsername) Username = from.ReadString();
-			Photo = TLFactory.Read<TLChatPhotoBase>(from, cache);
+			Photo = TLFactory.Read<TLChatPhotoBase>(from);
 			Date = from.ReadInt32();
 			Version = from.ReadInt32();
 			if (HasRestrictionReason) RestrictionReason = from.ReadString();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			UpdateFlags();
 
@@ -78,11 +81,10 @@ namespace Telegram.Api.TL
 			if (HasAccessHash) to.Write(AccessHash.Value);
 			to.Write(Title);
 			if (HasUsername) to.Write(Username);
-			to.WriteObject(Photo, cache);
+			to.WriteObject(Photo);
 			to.Write(Date);
 			to.Write(Version);
 			if (HasRestrictionReason) to.Write(RestrictionReason);
-			if (cache) WriteToCache(to);
 		}
 
 		private void UpdateFlags()

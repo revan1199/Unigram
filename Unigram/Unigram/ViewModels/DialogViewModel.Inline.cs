@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Telegram.Api.Helpers;
 using Telegram.Api.TL;
+using Windows.UI.Xaml;
 
 namespace Unigram.ViewModels
 {
@@ -35,6 +36,15 @@ namespace Unigram.ViewModels
             set
             {
                 Set(ref _inlineBotResults, value);
+                RaisePropertyChanged(() => InlineBotResultsVisibility);
+            }
+        }
+
+        public Visibility InlineBotResultsVisibility
+        {
+            get
+            {
+                return _inlineBotResults != null && ((_inlineBotResults.HasSwitchPm && _inlineBotResults.SwitchPm != null) || (_inlineBotResults.Results != null && _inlineBotResults.Results.Count > 0)) ? Visibility.Visible : Visibility.Collapsed;
             }
         }
 
@@ -59,7 +69,7 @@ namespace Unigram.ViewModels
                 var response = await ProtoService.ResolveUsernameAsync(username);
                 if (response.IsSucceeded)
                 {
-                    CurrentInlineBot = response.Value.Users.FirstOrDefault() as TLUser;
+                    CurrentInlineBot = response.Result.Users.FirstOrDefault() as TLUser;
                     GetInlineBotResults(command ?? string.Empty);
                 }
             }
@@ -80,13 +90,13 @@ namespace Unigram.ViewModels
                 var response = await ProtoService.GetInlineBotResultsAsync(CurrentInlineBot.ToInputUser(), Peer, null, text, string.Empty);
                 if (response.IsSucceeded)
                 {
-                    foreach (var item in response.Value.Results)
+                    foreach (var item in response.Result.Results)
                     {
-                        item.QueryId = response.Value.QueryId;
+                        item.QueryId = response.Result.QueryId;
                     }
 
-                    InlineBotResults = response.Value;
-                    Debug.WriteLine(response.Value.Results.Count.ToString());
+                    InlineBotResults = response.Result;
+                    Debug.WriteLine(response.Result.Results.Count.ToString());
                 }
             }
         }
@@ -202,6 +212,7 @@ namespace Unigram.ViewModels
             message.InlineBotResultId = resultBase.Id;
             message.InlineBotResultQueryId = resultBase.QueryId;
             message.ViaBotId = botId;
+            message.HasViaBotId = true;
 
             var venueMedia = resultBase.SendMessage as TLBotInlineMessageMediaVenue;
             if (venueMedia != null)

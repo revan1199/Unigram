@@ -28,17 +28,26 @@ namespace Telegram.Api.TL
 		public bool HasEntities { get { return Flags.HasFlag(Flag.Entities); } set { Flags = value ? (Flags | Flag.Entities) : (Flags & ~Flag.Entities); } }
 
 		public Flag Flags { get; set; }
+		public Int32 Id { get; set; }
 		public Int32 UserId { get; set; }
+		public String Message { get; set; }
+		public Int32 Pts { get; set; }
+		public Int32 PtsCount { get; set; }
+		public Int32 Date { get; set; }
+		public TLMessageFwdHeader FwdFrom { get; set; }
+		public Int32? ViaBotId { get; set; }
+		public Int32? ReplyToMsgId { get; set; }
+		public TLVector<TLMessageEntityBase> Entities { get; set; }
 
 		public TLUpdateShortMessage() { }
-		public TLUpdateShortMessage(TLBinaryReader from, bool cache = false)
+		public TLUpdateShortMessage(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.UpdateShortMessage; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
 			Id = from.ReadInt32();
@@ -47,14 +56,13 @@ namespace Telegram.Api.TL
 			Pts = from.ReadInt32();
 			PtsCount = from.ReadInt32();
 			Date = from.ReadInt32();
-			if (HasFwdFrom) FwdFrom = TLFactory.Read<TLMessageFwdHeader>(from, cache);
+			if (HasFwdFrom) FwdFrom = TLFactory.Read<TLMessageFwdHeader>(from);
 			if (HasViaBotId) ViaBotId = from.ReadInt32();
 			if (HasReplyToMsgId) ReplyToMsgId = from.ReadInt32();
-			if (HasEntities) Entities = TLFactory.Read<TLVector<TLMessageEntityBase>>(from, cache);
-			if (cache) ReadFromCache(from);
+			if (HasEntities) Entities = TLFactory.Read<TLVector<TLMessageEntityBase>>(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			UpdateFlags();
 
@@ -66,11 +74,10 @@ namespace Telegram.Api.TL
 			to.Write(Pts);
 			to.Write(PtsCount);
 			to.Write(Date);
-			if (HasFwdFrom) to.WriteObject(FwdFrom, cache);
+			if (HasFwdFrom) to.WriteObject(FwdFrom);
 			if (HasViaBotId) to.Write(ViaBotId.Value);
 			if (HasReplyToMsgId) to.Write(ReplyToMsgId.Value);
-			if (HasEntities) to.WriteObject(Entities, cache);
-			if (cache) WriteToCache(to);
+			if (HasEntities) to.WriteObject(Entities);
 		}
 
 		private void UpdateFlags()

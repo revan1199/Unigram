@@ -9,9 +9,12 @@ using Telegram.Api.Helpers;
 using Telegram.Api.Services;
 using Telegram.Api.Services.Cache;
 using Telegram.Api.TL;
+using Unigram.Common;
+using Unigram.Converters;
 using Windows.Devices.Input;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.Globalization.DateTimeFormatting;
 using Windows.Security.Cryptography;
 using Windows.Security.Cryptography.Core;
 using Windows.UI;
@@ -28,14 +31,23 @@ using Windows.UI.Xaml.Navigation;
 
 namespace Unigram.Controls.Items
 {
-    public sealed partial class DialogListViewItem : UserControl
+    public sealed partial class DialogListViewItem : HackUserControl
     {
         public TLDialog ViewModel => DataContext as TLDialog;
         private TLDialog _oldViewModel;
+        private TLDialog _oldValue;
 
         public DialogListViewItem()
         {
             InitializeComponent();
+
+            DataContextChanged += (s, args) =>
+            {
+                if (ViewModel != null && ViewModel != _oldValue) Bindings.Update();
+                if (ViewModel == null) Bindings.StopTracking();
+
+                _oldValue = ViewModel;
+            };
 
             DataContextChanged += OnDataContextChanged;
         }
@@ -91,38 +103,16 @@ namespace Unigram.Controls.Items
             }
         }
 
+        private Visibility UpdateIsPinned(bool isPinned, int unreadCount)
+        {
+            return isPinned && unreadCount == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
         private void UpdatePicture()
         {
-            switch (Utils.GetColorIndex(ViewModel.WithId))
-            {
-                case 0:
-                    Placeholder.Fill = Application.Current.Resources["PlaceholderRedBrush"] as SolidColorBrush;
-                    break;
-                case 1:
-                    Placeholder.Fill = Application.Current.Resources["PlaceholderGreenBrush"] as SolidColorBrush;
-                    break;
-                case 2:
-                    Placeholder.Fill = Application.Current.Resources["PlaceholderYellowBrush"] as SolidColorBrush;
-                    break;
-                case 3:
-                    Placeholder.Fill = Application.Current.Resources["PlaceholderBlueBrush"] as SolidColorBrush;
-                    break;
-                case 4:
-                    Placeholder.Fill = Application.Current.Resources["PlaceholderPurpleBrush"] as SolidColorBrush;
-                    break;
-                case 5:
-                    Placeholder.Fill = Application.Current.Resources["PlaceholderPinkBrush"] as SolidColorBrush;
-                    break;
-                case 6:
-                    Placeholder.Fill = Application.Current.Resources["PlaceholderCyanBrush"] as SolidColorBrush;
-                    break;
-                case 7:
-                    Placeholder.Fill = Application.Current.Resources["PlaceholderOrangeBrush"] as SolidColorBrush;
-                    break;
-                default:
-                    Placeholder.Fill = Application.Current.Resources["ListViewItemPlaceholderBackgroundThemeBrush"] as SolidColorBrush;
-                    break;
-            }
+            //Placeholder.Fill = Application.Current.Resources[$"Placeholder{Utils.GetColorIndex(ViewModel.WithId)}ImageBrush"] as ImageBrush;
+
+            //Placeholder.Fill = BindConvert.Current.Bubble(ViewModel.WithId);
         }
 
         private string UpdateBriefLabel(TLDialog dialog)
@@ -130,7 +120,7 @@ namespace Unigram.Controls.Items
             var topMessage = ViewModel?.TopMessageItem as TLMessageBase;
             if (topMessage != null)
             {
-                var message = topMessage as TLMessage;
+                var message = topMessage as TLMessageCommonBase;
                 if (message != null)
                 {
                     return GetBriefLabel(message, true);
@@ -157,7 +147,7 @@ namespace Unigram.Controls.Items
             var messageService = value as TLMessageService;
             if (messageService != null)
             {
-                // TODO: return ServiceMessageToTextConverter.Convert(messageService);
+                return ServiceHelper.Convert(messageService);
             }
 
             var message = value as TLMessage;
@@ -173,19 +163,29 @@ namespace Unigram.Controls.Items
 
                 if (message.Media != null)
                 {
+                    if (message.Media is TLMessageMediaGame)
+                    {
+                        return text + "\uD83C\uDFAE " + ((TLMessageMediaGame)message.Media).Game.Title;
+                    }
                     if (message.Media is TLMessageMediaDocument)
                     {
+                        var caption = string.Empty;
+                        if (!string.IsNullOrEmpty(((TLMessageMediaDocument)message.Media).Caption))
+                        {
+                            caption = ", " + ((TLMessageMediaDocument)message.Media).Caption.Replace("\r\n", "\n").Replace("\n", " ");
+                        }
+
                         if (message.IsVoice())
                         {
-                            return text + "Voice";
+                            return text + "Voice" + caption;
                         }
                         else if (message.IsVideo())
                         {
-                            return text + "Video";
+                            return text + "Video" + caption;
                         }
                         else if (message.IsGif())
                         {
-                            return text + "GIF";
+                            return text + "GIF" + caption;
                         }
                         else if (message.IsSticker())
                         {
@@ -203,20 +203,43 @@ namespace Unigram.Controls.Items
                             //return text + Resources.Sticker;
                             return text + "Sticker";
                         }
+                        else if (message.IsAudio())
+                        {
+                            var documentAudio = (message.Media as TLMessageMediaDocument).Document as TLDocument;
+                            if (documentAudio != null)
+                            {
+                                var audioAttribute = documentAudio.Attributes.OfType<TLDocumentAttributeAudio>().FirstOrDefault();
+                                if (audioAttribute != null)
+                                {
+                                    if (audioAttribute.HasPerformer && audioAttribute.HasTitle)
+                                    {
+                                        return $"{text}{audioAttribute.Performer} - {audioAttribute.Title}";
+                                    }
+                                    else if (audioAttribute.HasPerformer && !audioAttribute.HasTitle)
+                                    {
+                                        return $"{text}{audioAttribute.Performer} - Unknown Track";
+                                    }
+                                    else if (audioAttribute.HasTitle && !audioAttribute.HasPerformer)
+                                    {
+                                        return $"{text}{audioAttribute.Title}";
+                                    }
+                                }
+                            }
+                        }
 
-                        var document = (message.Media as TLMessageMediaDocument).Document as TLDocument;
+                        var document = ((TLMessageMediaDocument)message.Media).Document as TLDocument;
                         if (document != null)
                         {
                             var attribute = document.Attributes.OfType<TLDocumentAttributeFilename>().FirstOrDefault();
                             if (attribute != null)
                             {
                                 //return $"{text}{attribute.Alt} ({Resources.Sticker.ToLower()})";
-                                return text + attribute.FileName;
+                                return text + attribute.FileName + caption;
                             }
                         }
 
                         //return text + Resources.Document;
-                        return text + "Document";
+                        return text + "Document" + caption;
                     }
                     else
                     {
@@ -230,11 +253,15 @@ namespace Unigram.Controls.Items
                             //return text + Resources.GeoPoint;
                             return text + "GeoPoint";
                         }
+                        else if (message.Media is TLMessageMediaVenue)
+                        {
+                            return text + "Venue";
+                        }
                         else if (message.Media is TLMessageMediaPhoto)
                         {
-                            if (!string.IsNullOrEmpty(message.Media.Caption))
+                            if (!string.IsNullOrEmpty(((TLMessageMediaPhoto)message.Media).Caption))
                             {
-                                return text + message.Media.Caption;
+                                return text + "Photo, " + ((TLMessageMediaPhoto)message.Media).Caption.Replace("\r\n", "\n").Replace("\n", " ");
                             }
 
                             //return text + Resources.Photo;
@@ -260,7 +287,7 @@ namespace Unigram.Controls.Items
                 {
                     if (showContent)
                     {
-                        return text + message.Message;
+                        return text + message.Message.Replace("\r\n", "\n").Replace("\n", " ");
                     }
 
                     //return text + Resources.Message;
@@ -297,7 +324,7 @@ namespace Unigram.Controls.Items
                             int currentUserId = MTProtoService.Current.CurrentUserId;
                             if (currentUserId == from)
                             {
-                                if (dialog.Index != from)
+                                if (dialog.Id != from && !message.IsPost)
                                 {
                                     return "You: ";
                                 }
@@ -411,7 +438,8 @@ namespace Unigram.Controls.Items
                 //Today
                 if (dateTime.Date == DateTime.Now.Date)
                 {
-                    TimeLabel.Text = dateTime.ToString(string.Format("{0}", shortTimePattern), cultureInfo);
+                    //TimeLabel.Text = dateTime.ToString(string.Format("{0}", shortTimePattern), cultureInfo);
+                    TimeLabel.Text = BindConvert.Current.ShortTime.Format(dateTime);
                     return;
                 }
 
@@ -422,23 +450,42 @@ namespace Unigram.Controls.Items
                     return;
                 }
 
-                //Long time ago (no more than one year ago)
-                if (dateTime.Date.AddDays(365) >= DateTime.Now.Date)
-                {
-                    TimeLabel.Text = dateTime.ToString(string.Format("d MMM", shortTimePattern), cultureInfo);
-                    return;
-                }
-
                 //Long long time ago
-                TimeLabel.Text = dateTime.ToString(string.Format("d.MM.yyyy", shortTimePattern), cultureInfo);
+                //TimeLabel.Text = dateTime.ToString(string.Format("d.MM.yyyy", shortTimePattern), cultureInfo);
+                TimeLabel.Text = BindConvert.Current.ShortDate.Format(dateTime);
+            }
+            else
+            {
+                TimeLabel.Text = string.Empty;
             }
         }
 
         private void UpdateUnreadCount()
         {
-            ((TextBlock)UnreadLabel.Child).Text = ViewModel?.UnreadCount.ToString() ?? string.Empty;
+            UnreadBadge.Text = ViewModel?.UnreadCount.ToString() ?? string.Empty;
             UnreadLabel.Visibility = ViewModel?.UnreadCount > 0 ? Visibility.Visible : Visibility.Collapsed;
-            Highlight.Visibility = ViewModel?.UnreadCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private Visibility UpdateUnreadBadgeBrush(TLPeerNotifySettingsBase settingsBase)
+        {
+            var settings = settingsBase as TLPeerNotifySettings;
+            if (settings != null)
+            {
+                return settings.MuteUntil == 0 && !settings.IsSilent ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            return Visibility.Visible;
+        }
+
+        private Visibility UpdateUnreadBadgeMutedBrush(TLPeerNotifySettingsBase settingsBase)
+        {
+            var settings = settingsBase as TLPeerNotifySettings;
+            if (settings != null)
+            {
+                return settings.MuteUntil == 0 && !settings.IsSilent ? Visibility.Collapsed : Visibility.Visible;
+            }
+
+            return Visibility.Collapsed;
         }
 
         private void UpdateChannelType()
@@ -452,169 +499,13 @@ namespace Unigram.Controls.Items
                 }
             }
         }
+    }
 
-        #region Context menu
-        private static MenuFlyout _menuFlyout = new MenuFlyout();
-        private static MenuFlyoutItem _menuItemClearHistory;
-        private static MenuFlyoutItem _menuItemDeleteDialog;
-        private static MenuFlyoutItem _menuItemDeleteAndStop;
-        private static MenuFlyoutItem _menuItemDeleteAndExit;
-        private static MenuFlyoutItem _menuItemPinToStart;
-
-        protected override void OnRightTapped(RightTappedRoutedEventArgs e)
-        {
-            if (e.PointerDeviceType != PointerDeviceType.Touch)
-            {
-                UpdateContextMenu();
-                _menuFlyout.ShowAt(this, e.GetPosition(this));
-                e.Handled = true;
-            }
-
-            base.OnRightTapped(e);
-        }
-
-        protected override void OnHolding(HoldingRoutedEventArgs e)
-        {
-            if (e.PointerDeviceType == PointerDeviceType.Touch && e.HoldingState == Windows.UI.Input.HoldingState.Started)
-            {
-                UpdateContextMenu();
-                _menuFlyout.ShowAt(this);
-                e.Handled = true;
-            }
-
-            base.OnHolding(e);
-        }
-
-        private void UpdateContextMenu()
-        {
-            FlyoutBase.SetAttachedFlyout(this, _menuFlyout);
-
-            var canClearHistory = CanClearHistory(ref _menuItemClearHistory);
-            var canDeleteDialog = CanDeleteDialog(ref _menuItemDeleteDialog);
-            var canDeleteAndStop = CanDeleteAndStop(ref _menuItemDeleteAndStop);
-            var canDeleteAndExit = CanDeleteAndExit(ref _menuItemDeleteAndExit);
-            var canPinToStart = CanPinToStart(ref _menuItemPinToStart);
-
-            AddMenuItem(canClearHistory, _menuFlyout, ref _menuItemClearHistory, "Clear History", null);
-            AddMenuItem(canDeleteDialog, _menuFlyout, ref _menuItemDeleteDialog, "Delete Dialog", null);
-            AddMenuItem(canDeleteAndStop, _menuFlyout, ref _menuItemDeleteAndStop, "Delete and Stop", null);
-            AddMenuItem(canDeleteAndExit, _menuFlyout, ref _menuItemDeleteAndExit, "Delete and Exit", null);
-            AddMenuItem(canPinToStart, _menuFlyout, ref _menuItemPinToStart, "Pin to Start", null);
-        }
-
-        private bool CanClearHistory(ref MenuFlyoutItem menuItem)
-        {
-            if (ViewModel != null)
-            {
-                var peerChannel = ViewModel.Peer as TLPeerChannel;
-                return peerChannel == null;
-            }
-
-            return false;
-        }
-
-        private bool CanDeleteDialog(ref MenuFlyoutItem menuItem)
-        {
-            if (ViewModel != null)
-            {
-                var peerChannel = ViewModel.Peer as TLPeerChannel;
-                if (peerChannel != null)
-                {
-                    var channel = ViewModel.With as TLChannel;
-                    if (channel != null)
-                    {
-                        if (channel.IsCreator)
-                        {
-                            menuItem.Text = channel.IsMegagroup ? "AppResources.DeleteGroup" : "AppResources.DeleteChannel";
-                        }
-                        else
-                        {
-                            menuItem.Text = channel.IsMegagroup ? "AppResources.LeaveGroup" : "AppResources.LeaveChannel";
-                        }
-                    }
-
-                    return true;
-                }
-
-                var peerUser = ViewModel.Peer as TLPeerUser;
-                if (peerUser != null)
-                {
-                    return true;
-                }
-
-                var peerChat = ViewModel.Peer as TLPeerChat;
-                if (peerChat != null)
-                {
-                    return ViewModel.With is TLChatForbidden || ViewModel.With is TLChatEmpty;
-                }
-            }
-
-            return false;
-        }
-
-        private bool CanDeleteAndStop(ref MenuFlyoutItem menuItem)
-        {
-            if (ViewModel != null)
-            {
-                var user = ViewModel.With as TLUser;
-                return user != null && user.IsBot;
-
-                //menuItem.set_Visibility((user != null && user.IsBot && (user.Blocked == null || !user.Blocked)) ? 0 : 1);
-            }
-
-            return false;
-        }
-
-        private bool CanDeleteAndExit(ref MenuFlyoutItem menuItem)
-        {
-            if (ViewModel != null)
-            {
-                var peerChat = ViewModel.Peer as TLPeerChat;
-                if (peerChat != null)
-                {
-                    return true;
-                }
-
-                //var peerEncryptedChat = tLDialogBase.Peer as TLPeerEncryptedChat;
-                //if (peerEncryptedChat != null)
-                //{
-                //    menuItem.Header = AppResources.DeleteChat.ToLowerInvariant();
-                //    menuItem.set_Visibility(0);
-                //    return;
-                //}
-            }
-
-            return false;
-        }
-
-        private bool CanPinToStart(ref MenuFlyoutItem menuItem)
-        {
-            // TODO:
-            return true;
-        }
-
-        private void AddMenuItem(bool enabled, MenuFlyout menu, ref MenuFlyoutItem menuItem, string header, RoutedEventHandler handler)
-        {
-            if (!enabled)
-            {
-                if (menuItem != null)
-                {
-                    menuItem.Visibility = Visibility.Collapsed;
-                }
-
-                return;
-            }
-
-            if (menuItem == null)
-            {
-                menuItem = new MenuFlyoutItem();
-                menuItem.Text = header;
-                menuItem.Click += handler;
-                menu.Items.Add(menuItem);
-            }
-
-            menuItem.Visibility = Visibility.Visible;
-        }
-        #endregion
+    public class HackUserControl : UserControl
+    {
+        /// <summary>
+        /// x:Bind hack
+        /// </summary>
+        public new event TypedEventHandler<FrameworkElement, object> Loading;
     }
 }

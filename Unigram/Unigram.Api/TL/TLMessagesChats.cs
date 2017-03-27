@@ -3,29 +3,25 @@ using System;
 
 namespace Telegram.Api.TL
 {
-	public partial class TLMessagesChats : TLObject 
+	public partial class TLMessagesChats : TLMessagesChatsBase 
 	{
-		public TLVector<TLChatBase> Chats { get; set; }
-
 		public TLMessagesChats() { }
-		public TLMessagesChats(TLBinaryReader from, bool cache = false)
+		public TLMessagesChats(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesChats; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			Chats = TLFactory.Read<TLVector<TLChatBase>>(from, cache);
-			if (cache) ReadFromCache(from);
+			Chats = TLFactory.Read<TLVector<TLChatBase>>(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x64FF9FD5);
-			to.WriteObject(Chats, cache);
-			if (cache) WriteToCache(to);
+			to.WriteObject(Chats);
 		}
 	}
 }

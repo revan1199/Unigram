@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Telegram.Api.Helpers;
 
 namespace Telegram.Api.TL
 {
-    public abstract partial class TLChatBase
+    public abstract partial class TLChatBase : ITLDialogWith
     {
         #region Full chat information
 
@@ -19,6 +21,8 @@ namespace Telegram.Api.TL
         public int UsersOnline { get; set; }
 
         public TLExportedChatInviteBase ExportedInvite { get; set; }
+
+        public TLVector<TLBotInfo> BotInfo { get; set; }
 
         #endregion
 
@@ -43,13 +47,76 @@ namespace Telegram.Api.TL
         }
 
         #region Add
-        public virtual string FullName
+        public virtual string DisplayName
+        {
+            get
+            {
+                return null;
+            }
+        }
+
+        public virtual object PhotoSelf
+        {
+            get
+            {
+                return this;
+            }
+        }
+        #endregion
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        public override void RaisePropertyChanged(string propertyName)
+        {
+            Execute.OnUIThread(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
+        }
+
+        public virtual TLInputPeerBase ToInputPeer()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public partial class TLChat
+    {
+        public override string DisplayName
         {
             get
             {
                 return Title;
             }
         }
-        #endregion
+    }
+
+    public partial class TLChatForbidden
+    {
+        public override string DisplayName
+        {
+            get
+            {
+                return Title;
+            }
+        }
+    }
+
+    public partial class TLChannel
+    {
+        public override string DisplayName
+        {
+            get
+            {
+                return Title;
+            }
+        }
+    }
+
+    public partial class TLChannelForbidden
+    {
+        public override string DisplayName
+        {
+            get
+            {
+                return Title;
+            }
+        }
     }
 }

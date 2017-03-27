@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Auth
 {
 	/// <summary>
-	/// RCP method auth.importAuthorization
+	/// RCP method auth.importAuthorization.
+	/// Returns <see cref="Telegram.Api.TL.TLAuthAuthorization"/>
 	/// </summary>
 	public partial class TLAuthImportAuthorization : TLObject
 	{
@@ -12,26 +13,24 @@ namespace Telegram.Api.TL.Methods.Auth
 		public Byte[] Bytes { get; set; }
 
 		public TLAuthImportAuthorization() { }
-		public TLAuthImportAuthorization(TLBinaryReader from, bool cache = false)
+		public TLAuthImportAuthorization(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.AuthImportAuthorization; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Id = from.ReadInt32();
 			Bytes = from.ReadByteArray();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xE3EF9613);
 			to.Write(Id);
 			to.WriteByteArray(Bytes);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

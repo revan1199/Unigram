@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Upload
 {
 	/// <summary>
-	/// RCP method upload.saveFilePart
+	/// RCP method upload.saveFilePart.
+	/// Returns <see cref="Telegram.Api.TL.TLBoolBase"/>
 	/// </summary>
 	public partial class TLUploadSaveFilePart : TLObject
 	{
@@ -13,28 +14,26 @@ namespace Telegram.Api.TL.Methods.Upload
 		public Byte[] Bytes { get; set; }
 
 		public TLUploadSaveFilePart() { }
-		public TLUploadSaveFilePart(TLBinaryReader from, bool cache = false)
+		public TLUploadSaveFilePart(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.UploadSaveFilePart; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			FileId = from.ReadInt64();
 			FilePart = from.ReadInt32();
 			Bytes = from.ReadByteArray();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xB304A621);
 			to.Write(FileId);
 			to.Write(FilePart);
 			to.WriteByteArray(Bytes);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

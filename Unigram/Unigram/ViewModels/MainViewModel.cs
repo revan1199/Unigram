@@ -16,8 +16,8 @@ using Unigram.Common;
 using Unigram.Converters;
 using Unigram.Core.Notifications;
 using Unigram.Core.Services;
+using Unigram.Views;
 using Windows.ApplicationModel.Background;
-using Windows.Foundation.Collections;
 using Windows.Globalization.DateTimeFormatting;
 using Windows.Networking.PushNotifications;
 using Windows.Security.Authentication.Web;
@@ -25,54 +25,40 @@ using Windows.Security.Cryptography;
 using Windows.Security.Cryptography.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Media;
+using Windows.UI.Xaml.Media.Imaging;
 using Windows.UI.Xaml.Navigation;
 
 namespace Unigram.ViewModels
 {
-    public class MainViewModel : UnigramViewModelBase, IHandle<TLMessageCommonBase>, IHandle
+    public class MainViewModel : UnigramViewModelBase
     {
         private readonly IPushService _pushService;
 
-        public MainViewModel(IMTProtoService protoService, ICacheService cacheService, ITelegramEventAggregator aggregator, IPushService pushService)
+        public MainViewModel(IMTProtoService protoService, ICacheService cacheService, ITelegramEventAggregator aggregator, IPushService pushService, IContactsService contactsService)
             : base(protoService, cacheService, aggregator)
         {
             _pushService = pushService;
-           
+
             //Dialogs = new DialogCollection(protoService, cacheService);
             SearchDialogs = new ObservableCollection<TLDialog>();
-            Dialogs = new DialogsViewModel(ProtoService, cacheService, aggregator);
-            Contacts = new ContactsViewModel(ProtoService, cacheService, aggregator);
-
-            aggregator.Subscribe(Dialogs);
-            aggregator.Subscribe(this);
+            Dialogs = new DialogsViewModel(protoService, cacheService, aggregator);
+            Contacts = new ContactsViewModel(protoService, cacheService, aggregator, contactsService);
+            Calls = new CallsViewModel(protoService, cacheService, aggregator);
         }
 
-        public override async Task OnNavigatedToAsync(object parameter, NavigationMode mode, IDictionary<string, object> state)
+        public override Task OnNavigatedToAsync(object parameter, NavigationMode mode, IDictionary<string, object> state)
         {
-            await _pushService.RegisterAsync();
+            Task.Run(() => _pushService.RegisterAsync());
+
+            Execute.BeginOnUIThread(() => Calls.OnNavigatedToAsync(parameter, mode, state));
+            //Execute.BeginOnUIThread(() => Dialogs.LoadFirstSlice());
+            //Execute.BeginOnUIThread(() => Contacts.getTLContacts());
+            //Execute.BeginOnUIThread(() => Contacts.GetSelfAsync());
+
+            return Task.CompletedTask;
         }
 
-        public void Handle(TLMessageCommonBase message)
-        {
-            Execute.BeginOnUIThread(async () =>
-            {
-                var corewin = Windows.UI.Core.CoreWindow.GetForCurrentThread();
-                var interop = (ICoreWindowInterop)(object)corewin;
-                var handle = interop.WindowHandle;
-
-                ValueSet valueSet = new ValueSet();
-                valueSet.Add("request", "Flash");
-                valueSet.Add("handle", handle.ToInt64());
-
-                if (App.Connection != null)
-                {
-                    var response = await App.Connection.SendMessageAsync(valueSet);
-                }
-            });
-        }
-
-        public ObservableCollection<string> ContactsList = new ObservableCollection<string>();
-
+        //END OF EXPERIMENTS
         //public DialogCollection Dialogs { get; private set; }
 
         public ObservableCollection<TLDialog> SearchDialogs { get; private set; }
@@ -81,38 +67,6 @@ namespace Unigram.ViewModels
 
         public ContactsViewModel Contacts { get; private set; }
 
-        public void GetSearchDialogs(string query)
-        {
-            try
-            {
-                SearchDialogs.Clear();
-            }
-            catch { }
-
-            foreach (var dialog in this.Dialogs.Items)
-            {
-                try
-                {
-                    if (dialog.FullName.ToLower().Contains(query.ToLower()))
-                    {
-                        SearchDialogs.Add(dialog);
-                    }
-                }
-                catch { }
-            }
-        }
-    }
-
-    public class UsersPanelListItem : TLUser
-    {
-        public TLUser _parent;
-        public UsersPanelListItem(TLUser parent)
-        {
-            _parent = parent;
-        }
-        public string fullName { get; internal set; }
-        public string lastSeen { get; internal set; }
-        public DateTime lastSeenEpoch { get; internal set; }
-        public Brush PlaceHolderColor { get; internal set; }
+        public CallsViewModel Calls { get; private set; }
     }
 }

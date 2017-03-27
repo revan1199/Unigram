@@ -5,18 +5,22 @@ namespace Telegram.Api.TL
 {
 	public partial class TLEncryptedChat : TLEncryptedChatBase 
 	{
+		public Int64 AccessHash { get; set; }
+		public Int32 Date { get; set; }
+		public Int32 AdminId { get; set; }
+		public Int32 ParticipantId { get; set; }
 		public Byte[] GAOrB { get; set; }
 		public Int64 KeyFingerprint { get; set; }
 
 		public TLEncryptedChat() { }
-		public TLEncryptedChat(TLBinaryReader from, bool cache = false)
+		public TLEncryptedChat(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.EncryptedChat; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Id = from.ReadInt32();
 			AccessHash = from.ReadInt64();
@@ -25,10 +29,9 @@ namespace Telegram.Api.TL
 			ParticipantId = from.ReadInt32();
 			GAOrB = from.ReadByteArray();
 			KeyFingerprint = from.ReadInt64();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xFA56CE36);
 			to.Write(Id);
@@ -38,7 +41,6 @@ namespace Telegram.Api.TL
 			to.Write(ParticipantId);
 			to.WriteByteArray(GAOrB);
 			to.Write(KeyFingerprint);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

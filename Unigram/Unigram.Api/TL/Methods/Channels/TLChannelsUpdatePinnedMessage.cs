@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Channels
 {
 	/// <summary>
-	/// RCP method channels.updatePinnedMessage
+	/// RCP method channels.updatePinnedMessage.
+	/// Returns <see cref="Telegram.Api.TL.TLUpdatesBase"/>
 	/// </summary>
 	public partial class TLChannelsUpdatePinnedMessage : TLObject
 	{
@@ -21,28 +22,26 @@ namespace Telegram.Api.TL.Methods.Channels
 		public Int32 Id { get; set; }
 
 		public TLChannelsUpdatePinnedMessage() { }
-		public TLChannelsUpdatePinnedMessage(TLBinaryReader from, bool cache = false)
+		public TLChannelsUpdatePinnedMessage(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.ChannelsUpdatePinnedMessage; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
-			Channel = TLFactory.Read<TLInputChannelBase>(from, cache);
+			Channel = TLFactory.Read<TLInputChannelBase>(from);
 			Id = from.ReadInt32();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xA72DED52);
 			to.Write((Int32)Flags);
-			to.WriteObject(Channel, cache);
+			to.WriteObject(Channel);
 			to.Write(Id);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

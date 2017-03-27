@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Account
 {
 	/// <summary>
-	/// RCP method account.updateProfile
+	/// RCP method account.updateProfile.
+	/// Returns <see cref="Telegram.Api.TL.TLUserBase"/>
 	/// </summary>
 	public partial class TLAccountUpdateProfile : TLObject
 	{
@@ -26,23 +27,22 @@ namespace Telegram.Api.TL.Methods.Account
 		public String About { get; set; }
 
 		public TLAccountUpdateProfile() { }
-		public TLAccountUpdateProfile(TLBinaryReader from, bool cache = false)
+		public TLAccountUpdateProfile(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.AccountUpdateProfile; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
 			if (HasFirstName) FirstName = from.ReadString();
 			if (HasLastName) LastName = from.ReadString();
 			if (HasAbout) About = from.ReadString();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			UpdateFlags();
 
@@ -51,7 +51,6 @@ namespace Telegram.Api.TL.Methods.Account
 			if (HasFirstName) to.Write(FirstName);
 			if (HasLastName) to.Write(LastName);
 			if (HasAbout) to.Write(About);
-			if (cache) WriteToCache(to);
 		}
 
 		private void UpdateFlags()

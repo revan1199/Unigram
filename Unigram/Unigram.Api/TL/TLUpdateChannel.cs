@@ -5,25 +5,25 @@ namespace Telegram.Api.TL
 {
 	public partial class TLUpdateChannel : TLUpdateBase 
 	{
+		public Int32 ChannelId { get; set; }
+
 		public TLUpdateChannel() { }
-		public TLUpdateChannel(TLBinaryReader from, bool cache = false)
+		public TLUpdateChannel(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.UpdateChannel; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			ChannelId = from.ReadInt32();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xB6D45656);
 			to.Write(ChannelId);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

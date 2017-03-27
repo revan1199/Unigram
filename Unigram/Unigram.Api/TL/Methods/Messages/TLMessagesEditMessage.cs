@@ -4,20 +4,21 @@ using System;
 namespace Telegram.Api.TL.Methods.Messages
 {
 	/// <summary>
-	/// RCP method messages.editMessage
+	/// RCP method messages.editMessage.
+	/// Returns <see cref="Telegram.Api.TL.TLUpdatesBase"/>
 	/// </summary>
 	public partial class TLMessagesEditMessage : TLObject
 	{
 		[Flags]
 		public enum Flag : Int32
 		{
-			NoWebpage = (1 << 1),
+			NoWebPage = (1 << 1),
 			Message = (1 << 11),
 			ReplyMarkup = (1 << 2),
 			Entities = (1 << 3),
 		}
 
-		public bool IsNoWebpage { get { return Flags.HasFlag(Flag.NoWebpage); } set { Flags = value ? (Flags | Flag.NoWebpage) : (Flags & ~Flag.NoWebpage); } }
+		public bool IsNoWebPage { get { return Flags.HasFlag(Flag.NoWebPage); } set { Flags = value ? (Flags | Flag.NoWebPage) : (Flags & ~Flag.NoWebPage); } }
 		public bool HasMessage { get { return Flags.HasFlag(Flag.Message); } set { Flags = value ? (Flags | Flag.Message) : (Flags & ~Flag.Message); } }
 		public bool HasReplyMarkup { get { return Flags.HasFlag(Flag.ReplyMarkup); } set { Flags = value ? (Flags | Flag.ReplyMarkup) : (Flags & ~Flag.ReplyMarkup); } }
 		public bool HasEntities { get { return Flags.HasFlag(Flag.Entities); } set { Flags = value ? (Flags | Flag.Entities) : (Flags & ~Flag.Entities); } }
@@ -30,36 +31,34 @@ namespace Telegram.Api.TL.Methods.Messages
 		public TLVector<TLMessageEntityBase> Entities { get; set; }
 
 		public TLMessagesEditMessage() { }
-		public TLMessagesEditMessage(TLBinaryReader from, bool cache = false)
+		public TLMessagesEditMessage(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesEditMessage; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
-			Peer = TLFactory.Read<TLInputPeerBase>(from, cache);
+			Peer = TLFactory.Read<TLInputPeerBase>(from);
 			Id = from.ReadInt32();
 			if (HasMessage) Message = from.ReadString();
-			if (HasReplyMarkup) ReplyMarkup = TLFactory.Read<TLReplyMarkupBase>(from, cache);
-			if (HasEntities) Entities = TLFactory.Read<TLVector<TLMessageEntityBase>>(from, cache);
-			if (cache) ReadFromCache(from);
+			if (HasReplyMarkup) ReplyMarkup = TLFactory.Read<TLReplyMarkupBase>(from);
+			if (HasEntities) Entities = TLFactory.Read<TLVector<TLMessageEntityBase>>(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			UpdateFlags();
 
 			to.Write(0xCE91E4CA);
 			to.Write((Int32)Flags);
-			to.WriteObject(Peer, cache);
+			to.WriteObject(Peer);
 			to.Write(Id);
 			if (HasMessage) to.Write(Message);
-			if (HasReplyMarkup) to.WriteObject(ReplyMarkup, cache);
-			if (HasEntities) to.WriteObject(Entities, cache);
-			if (cache) WriteToCache(to);
+			if (HasReplyMarkup) to.WriteObject(ReplyMarkup);
+			if (HasEntities) to.WriteObject(Entities);
 		}
 
 		private void UpdateFlags()

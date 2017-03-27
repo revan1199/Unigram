@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Account
 {
 	/// <summary>
-	/// RCP method account.setPrivacy
+	/// RCP method account.setPrivacy.
+	/// Returns <see cref="Telegram.Api.TL.TLAccountPrivacyRules"/>
 	/// </summary>
 	public partial class TLAccountSetPrivacy : TLObject
 	{
@@ -12,26 +13,24 @@ namespace Telegram.Api.TL.Methods.Account
 		public TLVector<TLInputPrivacyRuleBase> Rules { get; set; }
 
 		public TLAccountSetPrivacy() { }
-		public TLAccountSetPrivacy(TLBinaryReader from, bool cache = false)
+		public TLAccountSetPrivacy(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.AccountSetPrivacy; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			Key = TLFactory.Read<TLInputPrivacyKeyBase>(from, cache);
-			Rules = TLFactory.Read<TLVector<TLInputPrivacyRuleBase>>(from, cache);
-			if (cache) ReadFromCache(from);
+			Key = TLFactory.Read<TLInputPrivacyKeyBase>(from);
+			Rules = TLFactory.Read<TLVector<TLInputPrivacyRuleBase>>(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xC9F81CE8);
-			to.WriteObject(Key, cache);
-			to.WriteObject(Rules, cache);
-			if (cache) WriteToCache(to);
+			to.WriteObject(Key);
+			to.WriteObject(Rules);
 		}
 	}
 }

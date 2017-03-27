@@ -4,31 +4,30 @@ using System;
 namespace Telegram.Api.TL.Methods.Channels
 {
 	/// <summary>
-	/// RCP method channels.getChannels
+	/// RCP method channels.getChannels.
+	/// Returns <see cref="Telegram.Api.TL.TLMessagesChats"/>
 	/// </summary>
 	public partial class TLChannelsGetChannels : TLObject
 	{
 		public TLVector<TLInputChannelBase> Id { get; set; }
 
 		public TLChannelsGetChannels() { }
-		public TLChannelsGetChannels(TLBinaryReader from, bool cache = false)
+		public TLChannelsGetChannels(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.ChannelsGetChannels; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			Id = TLFactory.Read<TLVector<TLInputChannelBase>>(from, cache);
-			if (cache) ReadFromCache(from);
+			Id = TLFactory.Read<TLVector<TLInputChannelBase>>(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xA7F6BBB);
-			to.WriteObject(Id, cache);
-			if (cache) WriteToCache(to);
+			to.WriteObject(Id);
 		}
 	}
 }

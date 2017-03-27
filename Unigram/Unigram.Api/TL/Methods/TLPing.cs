@@ -4,31 +4,30 @@ using System;
 namespace Telegram.Api.TL.Methods
 {
 	/// <summary>
-	/// RCP method ping
+	/// RCP method ping.
+	/// Returns <see cref="Telegram.Api.TL.TLPong"/>
 	/// </summary>
 	public partial class TLPing : TLObject
 	{
 		public Int64 PingId { get; set; }
 
 		public TLPing() { }
-		public TLPing(TLBinaryReader from, bool cache = false)
+		public TLPing(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.Ping; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			PingId = from.ReadInt64();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x7ABE77EC);
 			to.Write(PingId);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

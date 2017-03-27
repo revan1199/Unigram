@@ -14,28 +14,31 @@ namespace Telegram.Api.TL
 		public bool HasGeo { get { return Flags.HasFlag(Flag.Geo); } set { Flags = value ? (Flags | Flag.Geo) : (Flags & ~Flag.Geo); } }
 
 		public Flag Flags { get; set; }
+		public Int64 QueryId { get; set; }
+		public Int32 UserId { get; set; }
+		public String Query { get; set; }
+		public TLGeoPointBase Geo { get; set; }
 		public String Offset { get; set; }
 
 		public TLUpdateBotInlineQuery() { }
-		public TLUpdateBotInlineQuery(TLBinaryReader from, bool cache = false)
+		public TLUpdateBotInlineQuery(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.UpdateBotInlineQuery; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
 			QueryId = from.ReadInt64();
 			UserId = from.ReadInt32();
 			Query = from.ReadString();
-			if (HasGeo) Geo = TLFactory.Read<TLGeoPointBase>(from, cache);
+			if (HasGeo) Geo = TLFactory.Read<TLGeoPointBase>(from);
 			Offset = from.ReadString();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			UpdateFlags();
 
@@ -44,9 +47,8 @@ namespace Telegram.Api.TL
 			to.Write(QueryId);
 			to.Write(UserId);
 			to.Write(Query);
-			if (HasGeo) to.WriteObject(Geo, cache);
+			if (HasGeo) to.WriteObject(Geo);
 			to.Write(Offset);
-			if (cache) WriteToCache(to);
 		}
 
 		private void UpdateFlags()

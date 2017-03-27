@@ -12,7 +12,7 @@ namespace Unigram.Core.Managers
         public static async Task<bool> RegisterAsync(string name, string entryPoint, IBackgroundTrigger trigger, Action onCompleted = null)
         {
             var access = await BackgroundExecutionManager.RequestAccessAsync();
-            if (access == BackgroundAccessStatus.Denied)
+            if (access == BackgroundAccessStatus.DeniedByUser || access == BackgroundAccessStatus.DeniedBySystemPolicy)
             {
                 return false;
             }
@@ -21,6 +21,7 @@ namespace Unigram.Core.Managers
             {
                 if (t.Value.Name == name)
                 {
+                    //t.Value.Unregister(false);
                     return false;
                 }
             }

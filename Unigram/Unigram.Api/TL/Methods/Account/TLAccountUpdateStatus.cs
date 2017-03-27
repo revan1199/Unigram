@@ -4,31 +4,30 @@ using System;
 namespace Telegram.Api.TL.Methods.Account
 {
 	/// <summary>
-	/// RCP method account.updateStatus
+	/// RCP method account.updateStatus.
+	/// Returns <see cref="Telegram.Api.TL.TLBoolBase"/>
 	/// </summary>
 	public partial class TLAccountUpdateStatus : TLObject
 	{
 		public Boolean Offline { get; set; }
 
 		public TLAccountUpdateStatus() { }
-		public TLAccountUpdateStatus(TLBinaryReader from, bool cache = false)
+		public TLAccountUpdateStatus(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.AccountUpdateStatus; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Offline = from.ReadBoolean();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x6628562C);
 			to.Write(Offline);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

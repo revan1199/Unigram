@@ -16,30 +16,35 @@ namespace Telegram.Api.TL
 		public bool HasGameShortName { get { return Flags.HasFlag(Flag.GameShortName); } set { Flags = value ? (Flags | Flag.GameShortName) : (Flags & ~Flag.GameShortName); } }
 
 		public Flag Flags { get; set; }
+		public Int64 QueryId { get; set; }
+		public Int32 UserId { get; set; }
+		public TLPeerBase Peer { get; set; }
 		public Int32 MsgId { get; set; }
+		public Int64 ChatInstance { get; set; }
+		public Byte[] Data { get; set; }
+		public String GameShortName { get; set; }
 
 		public TLUpdateBotCallbackQuery() { }
-		public TLUpdateBotCallbackQuery(TLBinaryReader from, bool cache = false)
+		public TLUpdateBotCallbackQuery(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.UpdateBotCallbackQuery; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
 			QueryId = from.ReadInt64();
 			UserId = from.ReadInt32();
-			Peer = TLFactory.Read<TLPeerBase>(from, cache);
+			Peer = TLFactory.Read<TLPeerBase>(from);
 			MsgId = from.ReadInt32();
 			ChatInstance = from.ReadInt64();
 			if (HasData) Data = from.ReadByteArray();
 			if (HasGameShortName) GameShortName = from.ReadString();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			UpdateFlags();
 
@@ -47,12 +52,11 @@ namespace Telegram.Api.TL
 			to.Write((Int32)Flags);
 			to.Write(QueryId);
 			to.Write(UserId);
-			to.WriteObject(Peer, cache);
+			to.WriteObject(Peer);
 			to.Write(MsgId);
 			to.Write(ChatInstance);
 			if (HasData) to.WriteByteArray(Data);
 			if (HasGameShortName) to.Write(GameShortName);
-			if (cache) WriteToCache(to);
 		}
 
 		private void UpdateFlags()

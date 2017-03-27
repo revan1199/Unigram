@@ -113,7 +113,7 @@ namespace Unigram.Collections
                     var currentPosition = IndexOf(e.Dialog);
                     if (currentPosition < 0)
                     {
-                        var already = this.FirstOrDefault(x => x.Index == e.Dialog.Index);
+                        var already = this.FirstOrDefault(x => x.Id == e.Dialog.Id);
                         if (already != null)
                         {
                             currentPosition = IndexOf(already);
@@ -373,12 +373,12 @@ namespace Unigram.Collections
                 var response = await _protoService.GetDialogsAsync(lastDate, lastMsgId, lastPeer, 200);
                 if (response.IsSucceeded)
                 {
-                    foreach (var item in response.Value.Dialogs)
+                    foreach (var item in response.Result.Dialogs)
                     {
                         Add(item);
                     }
 
-                    return new LoadMoreItemsResult { Count = (uint)response.Value.Dialogs.Count };
+                    return new LoadMoreItemsResult { Count = (uint)response.Result.Dialogs.Count };
                 }
 
                 return new LoadMoreItemsResult { Count = 20 };
@@ -396,14 +396,14 @@ namespace Unigram.Collections
                     var clearedDialogs = new List<TLDialog>();
                     foreach (var current in dialogs)
                     {
-                        if (!dictionary.ContainsKey(current.Index))
+                        if (!dictionary.ContainsKey(current.Id))
                         {
                             clearedDialogs.Add(current);
-                            dictionary[current.Index] = current;
+                            dictionary[current.Id] = current;
                         }
                         else
                         {
-                            var tLDialogBase = dictionary[current.Index];
+                            var tLDialogBase = dictionary[current.Id];
                             if (tLDialogBase.Peer is TLPeerUser && current.Peer is TLPeerUser)
                             {
                                 _cacheService.DeleteDialog(current);
@@ -463,7 +463,7 @@ namespace Unigram.Collections
                 else
                 {
                     var response = await _protoService.GetDialogsAsync(0, 0, new TLInputPeerEmpty(), 20);
-                    var result = response.Value;
+                    var result = response.Result;
                     result.Dialogs = new TLVector<TLDialog>(result.Dialogs.OrderByDescending(x => x.GetDateIndexWithDraft()));
 
                     foreach (var dialog in result.Dialogs)
@@ -532,7 +532,7 @@ namespace Unigram.Collections
             //base.IsWorking = true;
 
             var response = await _protoService.GetDialogsAsync(0, 0, new TLInputPeerEmpty(), limit);
-            var result = response.Value;
+            var result = response.Result;
             result.Dialogs = new TLVector<TLDialog>(result.Dialogs.OrderByDescending(x => x.GetDateIndexWithDraft()));
 
             Execute.BeginOnUIThread(() =>
@@ -696,7 +696,7 @@ namespace Unigram.Collections
             var response = await _protoService.GetDialogsAsync(0, 0, new TLInputPeerEmpty(), count);
             if (response.IsSucceeded)
             {
-                var result = response.Value;
+                var result = response.Result;
                 var vector = new TLVector<TLDialog>(result.Dialogs.Count);
                 foreach (var dialog in result.Dialogs.OrderBy(x => x.GetDateIndex()))
                 {

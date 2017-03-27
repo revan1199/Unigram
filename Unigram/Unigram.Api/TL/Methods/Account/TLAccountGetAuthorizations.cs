@@ -4,27 +4,26 @@ using System;
 namespace Telegram.Api.TL.Methods.Account
 {
 	/// <summary>
-	/// RCP method account.getAuthorizations
+	/// RCP method account.getAuthorizations.
+	/// Returns <see cref="Telegram.Api.TL.TLAccountAuthorizations"/>
 	/// </summary>
 	public partial class TLAccountGetAuthorizations : TLObject
 	{
 		public TLAccountGetAuthorizations() { }
-		public TLAccountGetAuthorizations(TLBinaryReader from, bool cache = false)
+		public TLAccountGetAuthorizations(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.AccountGetAuthorizations; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xE320C158);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

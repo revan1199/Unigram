@@ -13,6 +13,11 @@ namespace Unigram.Converters
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {
+            return Convert(value);
+        }
+
+        public static string Convert(object value)
+        {
             if (value == null)
             {
                 return null;
@@ -31,7 +36,7 @@ namespace Unigram.Converters
             var chat = value as TLChatBase;
             if (chat != null)
             {
-                var words = chat.FullName.Split(new char[] { ' ' });
+                var words = chat.DisplayName.Split(new char[] { ' ' });
                 if (words.Length > 0)
                 {
                     word1 = words[0];
@@ -49,6 +54,25 @@ namespace Unigram.Converters
                     //    word1 = words[0];
                     //    word2 = words[words.Length - 1];
                     //}
+                }
+            }
+
+            if (chat == null && user == null)
+            {
+                var str = value as string;
+                if (str != null)
+                {
+                    var words = str.Split(new char[] { ' ' });
+                    if (words.Length > 1)
+                    {
+                        word1 = words[0];
+                        word2 = words[words.Length - 1];
+                    }
+                    else
+                    {
+                        word1 = words[0];
+                        word2 = string.Empty;
+                    }
                 }
             }
 

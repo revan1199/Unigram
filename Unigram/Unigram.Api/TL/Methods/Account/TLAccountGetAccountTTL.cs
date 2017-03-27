@@ -4,27 +4,26 @@ using System;
 namespace Telegram.Api.TL.Methods.Account
 {
 	/// <summary>
-	/// RCP method account.getAccountTTL
+	/// RCP method account.getAccountTTL.
+	/// Returns <see cref="Telegram.Api.TL.TLAccountDaysTTL"/>
 	/// </summary>
 	public partial class TLAccountGetAccountTTL : TLObject
 	{
 		public TLAccountGetAccountTTL() { }
-		public TLAccountGetAccountTTL(TLBinaryReader from, bool cache = false)
+		public TLAccountGetAccountTTL(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.AccountGetAccountTTL; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x8FC711D);
-			if (cache) WriteToCache(to);
 		}
 	}
 }
