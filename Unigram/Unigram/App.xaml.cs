@@ -27,6 +27,20 @@ using Windows.UI.Notifications;
 using Windows.Storage;
 using Windows.UI.Popups;
 using Unigram.Views;
+using Windows.Media;
+using System.IO;
+using Template10.Services.NavigationService;
+using Unigram.Common;
+using Unigram.Views.Login;
+using Windows.UI.Core;
+using Unigram.Converters;
+using Windows.Foundation.Metadata;
+using Windows.ApplicationModel.Core;
+using System.Collections;
+using Telegram.Api.TL;
+using System.Collections.Generic;
+using Unigram.Core.Services;
+using Template10.Controls;
 
 namespace Unigram
 {
@@ -99,17 +113,17 @@ namespace Unigram
                 AppServiceTriggerDetails details = args.TaskInstance.TriggerDetails as AppServiceTriggerDetails;
                 Connection = details.AppServiceConnection;
             }
-            else if (args.TaskInstance.TriggerDetails is RawNotification)
-            {
-                var task = new NotificationTask();
-                task.Run(args.TaskInstance);
-            }
-            else if (args.TaskInstance.TriggerDetails is ToastNotificationActionTriggerDetail)
-            {
-                // TODO: upgrade the task to take advanges from in-process execution.
-                var task = new InteractiveTask();
-                task.Run(args.TaskInstance);
-            }
+            //else if (args.TaskInstance.TriggerDetails is RawNotification)
+            //{
+            //    var task = new NotificationTask();
+            //    task.Run(args.TaskInstance);
+            //}
+            //else if (args.TaskInstance.TriggerDetails is ToastNotificationActionTriggerDetail)
+            //{
+            //    // TODO: upgrade the task to take advanges from in-process execution.
+            //    var task = new InteractiveTask();
+            //    task.Run(args.TaskInstance);
+            //}
         }
 
         public override UIElement CreateRootElement(IActivatedEventArgs e)

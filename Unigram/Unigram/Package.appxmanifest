@@ -98,7 +98,7 @@
     <uap:Capability Name="picturesLibrary" />
     <uap:Capability Name="voipCall" />
     <uap:Capability Name="contacts" />
-    <!--<rescap:Capability Name="runFullTrust" />-->
+    <rescap:Capability Name="runFullTrust" />
     <DeviceCapability Name="location" />
     <DeviceCapability Name="microphone" />
   </Capabilities>

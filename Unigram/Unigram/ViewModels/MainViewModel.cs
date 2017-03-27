@@ -18,6 +18,7 @@ using Unigram.Core.Notifications;
 using Unigram.Core.Services;
 using Unigram.Views;
 using Windows.ApplicationModel.Background;
+using Windows.Foundation.Collections;
 using Windows.Globalization.DateTimeFormatting;
 using Windows.Networking.PushNotifications;
 using Windows.Security.Authentication.Web;
@@ -30,7 +31,7 @@ using Windows.UI.Xaml.Navigation;
 
 namespace Unigram.ViewModels
 {
-    public class MainViewModel : UnigramViewModelBase
+    public class MainViewModel : UnigramViewModelBase, IHandle<TLMessageCommonBase>, IHandle
     {
         private readonly IPushService _pushService;
 
@@ -39,11 +40,12 @@ namespace Unigram.ViewModels
         {
             _pushService = pushService;
 
-            //Dialogs = new DialogCollection(protoService, cacheService);
             SearchDialogs = new ObservableCollection<TLDialog>();
             Dialogs = new DialogsViewModel(protoService, cacheService, aggregator);
             Contacts = new ContactsViewModel(protoService, cacheService, aggregator, contactsService);
             Calls = new CallsViewModel(protoService, cacheService, aggregator);
+
+            aggregator.Subscribe(this);
         }
 
         public override Task OnNavigatedToAsync(object parameter, NavigationMode mode, IDictionary<string, object> state)
@@ -58,8 +60,27 @@ namespace Unigram.ViewModels
             return Task.CompletedTask;
         }
 
-        //END OF EXPERIMENTS
-        //public DialogCollection Dialogs { get; private set; }
+        public void Handle(TLMessageCommonBase message)
+        {
+            if (message.IsOut == false)
+            {
+                Execute.BeginOnUIThread(async () =>
+                {
+                    var corewin = Windows.UI.Core.CoreWindow.GetForCurrentThread();
+                    var interop = (ICoreWindowInterop)(object)corewin;
+                    var handle = interop.WindowHandle;
+
+                    ValueSet valueSet = new ValueSet();
+                    valueSet.Add("request", "Flash");
+                    valueSet.Add("handle", handle.ToInt64());
+
+                    if (App.Connection != null)
+                    {
+                        var response = await App.Connection.SendMessageAsync(valueSet);
+                    }
+                });
+            }
+        }
 
         public ObservableCollection<TLDialog> SearchDialogs { get; private set; }
 
