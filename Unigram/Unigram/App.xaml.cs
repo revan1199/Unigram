@@ -220,10 +220,10 @@ namespace Unigram
             TileUpdateManager.CreateTileUpdaterForApplication().Clear();
             ToastNotificationManager.History.Clear();
 
-            Execute.BeginOnThreadPool(async () =>
-            {
-                await new AppUpdateService().CheckForUpdatesAsync();
-            });
+            //Execute.BeginOnThreadPool(async () =>
+            //{
+            //    await new AppUpdateService().CheckForUpdatesAsync();
+            //});
 
             if (ApiInformation.IsTypePresent("Windows.ApplicationModel.FullTrustProcessLauncher"))
             {
