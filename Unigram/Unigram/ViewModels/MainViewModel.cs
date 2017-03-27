@@ -19,6 +19,7 @@ using Unigram.Core.Services;
 using Unigram.Views;
 using Windows.ApplicationModel.Background;
 using Windows.Foundation.Collections;
+using Windows.Foundation.Metadata;
 using Windows.Globalization.DateTimeFormatting;
 using Windows.Networking.PushNotifications;
 using Windows.Security.Authentication.Web;
@@ -45,7 +46,10 @@ namespace Unigram.ViewModels
             Contacts = new ContactsViewModel(protoService, cacheService, aggregator, contactsService);
             Calls = new CallsViewModel(protoService, cacheService, aggregator);
 
-            aggregator.Subscribe(this);
+            if (ApiInformation.IsTypePresent("Windows.ApplicationModel.FullTrustProcessLauncher"))
+            {
+                aggregator.Subscribe(this);
+            }
         }
 
         public override Task OnNavigatedToAsync(object parameter, NavigationMode mode, IDictionary<string, object> state)
