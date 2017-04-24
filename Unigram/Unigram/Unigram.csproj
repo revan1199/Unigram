@@ -128,8 +128,10 @@
     <Prefer32Bit>true</Prefer32Bit>
     <UseDotNetNativeToolchain>true</UseDotNetNativeToolchain>
   </PropertyGroup>
+  <PropertyGroup>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+  </PropertyGroup>
   <ItemGroup>
-    <!-- A reference to the entire .Net Framework and Windows SDK are automatically included -->
     <Compile Include="Behaviors\AspectRatioBehavior.cs" />
     <Compile Include="Common\ImageLoader\ContentDrawer.cs" />
     <Compile Include="Common\ImageLoader\ImageLoader.cs" />
@@ -176,6 +178,9 @@
     <Compile Include="Controls\TagsTextBox.cs" />
     <Compile Include="Controls\TagsWrapPanel.cs" />
     <Compile Include="Controls\TLListView.cs" />
+    <Compile Include="Controls\Views\AttachedStickersView.xaml.cs">
+      <DependentUpon>AttachedStickersView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Controls\Views\EditYourPhotoView.xaml.cs">
       <DependentUpon>EditYourPhotoView.xaml</DependentUpon>
     </Compile>
@@ -197,18 +202,26 @@
     <Compile Include="Controls\ZoomableGridViewPopup.xaml.cs">
       <DependentUpon>ZoomableGridViewPopup.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Converters\ChannelParticipantToTypeConverter.cs" />
     <Compile Include="Converters\InvoiceToAmountConverter.cs" />
+    <Compile Include="Selectors\GalleryTemplateSelector.cs" />
     <Compile Include="Selectors\StickerSetCoveredTemplateSelector.cs" />
     <Compile Include="Selectors\StickerSetItemTemplateSelector.cs" />
     <Compile Include="Selectors\StickerSetTemplateSelector.cs" />
+    <Compile Include="ViewModels\AttachedStickersViewModel.cs" />
     <Compile Include="ViewModels\CallsViewModel.cs" />
+    <Compile Include="ViewModels\Channels\ChannelAdminsViewModel.cs" />
     <Compile Include="ViewModels\Channels\ChannelDetailsViewModel.cs" />
+    <Compile Include="ViewModels\Channels\ChannelParticipantsViewModel.cs" />
+    <Compile Include="ViewModels\Channels\ChannelParticipantsViewModelBase.cs" />
     <Compile Include="ViewModels\Channels\CreateChannelStep1ViewModel.cs" />
     <Compile Include="ViewModels\Channels\CreateChannelStep2ViewModel.cs" />
     <Compile Include="ViewModels\Channels\CreateChannelStep3ViewModel.cs" />
+    <Compile Include="ViewModels\Channels\ChannelKickedViewModel.cs" />
     <Compile Include="ViewModels\Chats\CreateChatStep1ViewModel.cs" />
     <Compile Include="ViewModels\Chats\CreateChatStep2ViewModel.cs" />
     <Compile Include="ViewModels\DialogStickersViewModel.cs" />
+    <Compile Include="ViewModels\InstantGalleryViewModel.cs" />
     <Compile Include="ViewModels\Payments\PaymentFormStep1ViewModel.cs" />
     <Compile Include="ViewModels\Payments\PaymentFormStep2ViewModel.cs" />
     <Compile Include="ViewModels\Payments\PaymentFormStep3ViewModel.cs" />
@@ -227,11 +240,21 @@
     <Compile Include="ViewModels\Settings\SettingsStickersArchivedViewModelBase.cs" />
     <Compile Include="ViewModels\Settings\SettingsStickersViewModel.cs" />
     <Compile Include="ViewModels\Settings\SettingsStickersViewModelBase.cs" />
+    <Compile Include="ViewModels\SingleGalleryViewModel.cs" />
     <Compile Include="ViewModels\StickerSetViewModel.cs" />
     <Compile Include="ViewModels\UsersSelectionViewModel.cs" />
     <Compile Include="ViewModels\Users\UserCommonChatsViewModel.cs" />
+    <Compile Include="Views\Channels\ChannelAdminsPage.xaml.cs">
+      <DependentUpon>ChannelAdminsPage.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\Channels\ChannelDetailsPage.xaml.cs">
       <DependentUpon>ChannelDetailsPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\Channels\ChannelKickedPage.xaml.cs">
+      <DependentUpon>ChannelKickedPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\Channels\ChannelParticipantsPage.xaml.cs">
+      <DependentUpon>ChannelParticipantsPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\Channels\CreateChannelStep2Page.xaml.cs">
       <DependentUpon>CreateChannelStep2Page.xaml</DependentUpon>
@@ -292,7 +315,6 @@
     </Compile>
     <Content Include="Assets\Fonts\Telegram.ttf" />
     <Content Include="Assets\Fonts\PhtoMDL2.2.08.ttf" />
-    <None Include="project.json" />
     <Compile Include="Common\Language.cs" />
     <Compile Include="Controls\BubbleActionButton.cs" />
     <Compile Include="Controls\DialogsListView.cs" />
@@ -312,7 +334,7 @@
     </Compile>
     <Compile Include="Converters\LastSeenConverter.cs" />
     <Compile Include="Converters\PhoneNumberFormatConverter.cs" />
-    <Compile Include="ViewModels\ArticleViewModel.cs" />
+    <Compile Include="ViewModels\InstantViewModel.cs" />
     <Compile Include="ViewModels\DialogViewModel.Typing.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -401,8 +423,8 @@
     </Compile>
     <Compile Include="Controls\MasterDetailView.cs" />
     <Compile Include="Controls\Messages\MessageBubbleBase.cs" />
-    <Compile Include="Controls\Views\PhotosView.xaml.cs">
-      <DependentUpon>PhotosView.xaml</DependentUpon>
+    <Compile Include="Controls\Views\GalleryView.xaml.cs">
+      <DependentUpon>GalleryView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Controls\PivotRadioButton.cs" />
     <Compile Include="Controls\Messages\MessageReference.xaml.cs">
@@ -461,7 +483,7 @@
     <Compile Include="ViewModels\SignIn\SignInViewModel.cs" />
     <Compile Include="ViewModels\SignIn\SignInWelcomeViewModel.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
-    <Compile Include="ViewModels\PhotosViewModelBase.cs" />
+    <Compile Include="ViewModels\GalleryViewModelBase.cs" />
     <Compile Include="ViewModels\SettingsViewModel.cs" />
     <Compile Include="ViewModels\Settings\SettingsEditNameViewModel.cs" />
     <Compile Include="ViewModels\Settings\SettingsStickersFeaturedViewModel.cs" />
@@ -474,8 +496,8 @@
     <Compile Include="Views\AboutPage.xaml.cs">
       <DependentUpon>AboutPage.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Views\ArticlePage.xaml.cs">
-      <DependentUpon>ArticlePage.xaml</DependentUpon>
+    <Compile Include="Views\InstantPage.xaml.cs">
+      <DependentUpon>InstantPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\BlankPage.xaml.cs">
       <DependentUpon>BlankPage.xaml</DependentUpon>
@@ -488,9 +510,6 @@
     </Compile>
     <Compile Include="Views\Chats\CreateChatStep1Page.xaml.cs">
       <DependentUpon>CreateChatStep1Page.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\DialogInfoAdminsPage.xaml.cs">
-      <DependentUpon>DialogInfoAdminsPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\DialogPage.Bubbles.xaml.cs">
       <DependentUpon>DialogPage.xaml</DependentUpon>
@@ -749,6 +768,10 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="Controls\Views\AttachedStickersView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Controls\Views\DeleteChannelMessageDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -765,7 +788,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Controls\Views\PhotosView.xaml">
+    <Page Include="Controls\Views\GalleryView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -837,7 +860,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="Views\ArticlePage.xaml">
+    <Page Include="Views\InstantPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -845,7 +868,19 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="Views\Channels\ChannelAdminsPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Views\Channels\ChannelDetailsPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\Channels\ChannelKickedPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\Channels\ChannelParticipantsPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -870,10 +905,6 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\Chats\CreateChatStep2Page.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\DialogInfoAdminsPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -1035,6 +1066,32 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Autofac">
+      <Version>4.5.0</Version>
+    </PackageReference>
+    <PackageReference Include="HockeySDK.UWP">
+      <Version>4.1.6</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NETCore.UniversalWindowsPlatform">
+      <Version>5.3.2</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Xaml.Behaviors.Uwp.Managed">
+      <Version>2.0.0</Version>
+    </PackageReference>
+    <PackageReference Include="Newtonsoft.Json">
+      <Version>10.0.2</Version>
+    </PackageReference>
+    <PackageReference Include="System.Reactive">
+      <Version>3.1.1</Version>
+    </PackageReference>
+    <PackageReference Include="Universal.WinSQLite">
+      <Version>3.12.2.2</Version>
+    </PackageReference>
+    <PackageReference Include="Win2D.Uwp">
+      <Version>1.20.0</Version>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Unigram.Api\Unigram.Api.csproj">
       <Project>{b1979f0b-11e6-4759-a54d-853b13139aa0}</Project>
       <Name>Unigram.Api</Name>
@@ -1059,6 +1116,10 @@
       <Project>{ac06b3e5-5174-4381-a167-8f912d61f3de}</Project>
       <Name>Unigram.Webview</Name>
     </ProjectReference>
+    <ProjectReference Include="..\UnigramHost\UnigramHost.vcxproj">
+      <Project>{0dbcf059-2952-4809-9003-193ca0c6d499}</Project>
+      <Name>UnigramHost</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <SDKReference Include="Microsoft.VCLibs, Version=14.0">
@@ -1071,7 +1132,6 @@
       <Name>Windows Mobile Extensions for the UWP</Name>
     </SDKReference>
   </ItemGroup>
-  <ItemGroup />
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
     <VisualStudioVersion>14.0</VisualStudioVersion>
   </PropertyGroup>
