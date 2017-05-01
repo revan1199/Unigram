@@ -26,5 +26,10 @@ namespace Unigram.Views.Settings
         {
             Frame.Navigate(typeof(SettingsStoragePage));
         }
+
+        private void Stats_Click(object sender, RoutedEventArgs e)
+        {
+            Frame.Navigate(typeof(SettingsStatsPage));
+        }
     }
 }
