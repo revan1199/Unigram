@@ -58,14 +58,14 @@
             <uap:DisplayName>Unigram</uap:DisplayName>
           </uap:Protocol>
         </uap:Extension>
-        <Extension Category="windows.backgroundTasks" EntryPoint="Unigram.Tasks.VoIPCallTask">
-          <BackgroundTasks ServerName="UnigramHost">
-            <Task Type="systemEvent" />
-          </BackgroundTasks>
-        </Extension>
         <Extension Category="windows.backgroundTasks" EntryPoint="Unigram.Tasks.InteractiveTask">
           <BackgroundTasks>
             <Task Type="systemEvent" />
+          </BackgroundTasks>
+        </Extension>
+        <Extension Category="windows.backgroundTasks" EntryPoint="Unigram.Tasks.VoIPCallTask">
+          <BackgroundTasks ServerName="UnigramHost">
+            <uap:Task Type="phoneCall" />
           </BackgroundTasks>
         </Extension>
         <Extension Category="windows.backgroundTasks" EntryPoint="Unigram.Native.Tasks.NotificationTask">
@@ -74,6 +74,10 @@
           </BackgroundTasks>
         </Extension>
         <uap:Extension Category="windows.voipCall" />
+        <uap:Extension Category="windows.appService" EntryPoint="Unigram.Tasks.VoIPServiceTask">
+          <uap:AppService Name="VoIPServiceTask" ServerName="UnigramHost" />
+        </uap:Extension>
+
         <!--<uap:Extension Category="windows.appService" EntryPoint="VoipTasks.AppService">
           <uap:AppService Name="VoipTasks.AppService" ServerName="VoipHost" />
         </uap:Extension>-->
