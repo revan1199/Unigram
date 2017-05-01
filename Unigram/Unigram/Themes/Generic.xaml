@@ -220,8 +220,8 @@
             </Setter.Value>
         </Setter>
     </Style>
-    
-    <Style TargetType="local:ProfilePictureView">
+
+    <Style x:Key="EllipseProfilePictureView" TargetType="local:ProfilePictureView">
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="local:ProfilePictureView">
@@ -234,6 +234,34 @@
             </Setter.Value>
         </Setter>
     </Style>
+
+    <Style x:Key="RectangleProfilePictureView" TargetType="local:ProfilePictureView">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="local:ProfilePictureView">
+                    <Border>
+                        <Border.Background>
+                            <ImageBrush ImageSource="{Binding Source, RelativeSource={RelativeSource Mode=TemplatedParent}}" AlignmentY="Center" AlignmentX="Center" Stretch="UniformToFill"/>
+                        </Border.Background>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--<Style TargetType="local:ProfilePictureView">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="local:ProfilePictureView">
+                    <Border CornerRadius="4096">
+                        <Border.Background>
+                            <ImageBrush ImageSource="{Binding Source, RelativeSource={RelativeSource Mode=TemplatedParent}}" AlignmentY="Center" AlignmentX="Center" Stretch="UniformToFill"/>
+                        </Border.Background>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>-->
 
     <Style x:Key="CheckButtonStyle" TargetType="local:HyperCheckButton">
         <Setter Property="Background" Value="Transparent"/>
