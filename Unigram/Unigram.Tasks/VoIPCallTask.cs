@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using Telegram.Api.Aggregator;
@@ -23,53 +24,67 @@ using Windows.ApplicationModel.Background;
 using Windows.ApplicationModel.Calls;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using libtgvoip;
+using Windows.Storage;
 
 namespace Unigram.Tasks
 {
     public sealed class VoIPCallTask : IBackgroundTask
     {
         private BackgroundTaskDeferral _deferral;
-        private static VoIPCallMediator _mediator;
 
+        internal static IBackgroundTaskInstance _instance;
+        internal static VoIPCallTask _current;
+        internal static VoIPCallMediator _mediator;
         internal static VoIPCallMediator Mediator
         {
             get
             {
                 if (_mediator == null)
+                {
+                    TLPushUtils.AddToast("Mediator doesn't exists", "Creating mediator", "default", "started", null, null, "voip");
                     _mediator = new VoIPCallMediator();
+                }
 
                 return _mediator;
             }
         }
 
+        [DllImport("kernel32.dll")]
+        static extern uint GetCurrentProcessId();
+
         public void Run(IBackgroundTaskInstance taskInstance)
         {
             _deferral = taskInstance.GetDeferral();
+            _instance = taskInstance;
+            _current = this;
+
+            TLPushUtils.AddToast("VoIPCallTask started", GetCurrentProcessId().ToString(), "default", "started", null, null, "voip");
 
             Mediator.Initialize(_deferral);
             taskInstance.Canceled += OnCanceled;
-
-
-            //var coordinator = VoipCallCoordinator.GetDefault();
-            //var call = coordinator.RequestNewIncomingCall("Unigram", "Lumia 435", "Lumia 435", null, "Unigram", null, "Unigram", null, VoipPhoneCallMedia.Audio, TimeSpan.FromSeconds(128));
-
-            //_systemCall = call;
-            //_systemCall.AnswerRequested += _systemCall_AnswerRequested;
         }
 
         private void OnCanceled(IBackgroundTaskInstance sender, BackgroundTaskCancellationReason reason)
         {
+            _mediator?.Dispose();
+            _mediator = null;
+
+            TLPushUtils.AddToast("Releasing background task", "Releasing background task", "default", "started", null, null, "voip");
+
             _deferral.Complete();
         }
     }
 
-    internal class VoIPCallMediator : IHandle<TLUpdatePhoneCall>, IHandle
+    internal class VoIPCallMediator : IHandle<TLUpdatePhoneCall>, IHandle, IDisposable
     {
         private readonly Queue<TLUpdatePhoneCall> _queue = new Queue<TLUpdatePhoneCall>();
 
         private AppServiceConnection _connection;
         private MTProtoService _protoService;
         private TransportService _transportService;
+
+        private VoIPControllerWrapper _controller;
 
         private VoipPhoneCall _systemCall;
         private TLPhoneCallBase _phoneCall;
@@ -78,20 +93,39 @@ namespace Unigram.Tasks
         private BackgroundTaskDeferral _deferral;
         private bool _initialized;
 
+        public VoIPCallMediator()
+        {
+            TLPushUtils.AddToast("Mediator constructed", "Mediator constructed", "default", "started", null, null, "voip");
+        }
+
         public async void Initialize(AppServiceConnection connection)
         {
-            _connection = connection;
-            _connection.RequestReceived += OnRequestReceived;
-
-            if (_protoService != null)
+            if (connection != null)
             {
+                TLPushUtils.AddToast("Mediator initialized", "Connecting app service", "default", "started", null, null, "voip");
+
+                _connection = connection;
+                _connection.RequestReceived += OnRequestReceived;
+            }
+            else
+            {
+                TLPushUtils.AddToast("Mediator initialized", "Disconnetting app service", "default", "started", null, null, "voip");
+
+                _connection.RequestReceived -= OnRequestReceived;
+                _connection = null;
+            }
+
+            if (_protoService != null && _connection != null)
+            {
+                TLPushUtils.AddToast("Mediator initialized", "Disposing proto service", "default", "started", null, null, "voip");
+
                 _protoService.Dispose();
                 _transportService.Close();
             }
 
-            if (_phoneCall != null)
+            if (_phoneCall != null && _connection != null)
             {
-                await _connection.SendMessageAsync(new ValueSet { { "caption", "voip.callInfo" }, { "request", TLSerializationService.Current.Serialize(_phoneCall) } });
+                await UpdateCallAsync(string.Empty);
             }
         }
 
@@ -99,6 +133,8 @@ namespace Unigram.Tasks
         {
             if (_connection == null & _protoService == null)
             {
+                TLPushUtils.AddToast("Mediator initialized", "Creating proto service", "default", "started", null, null, "voip");
+
                 var deviceInfoService = new DeviceInfoService();
                 var eventAggregator = new TelegramEventAggregator();
                 var cacheService = new InMemoryCacheService(eventAggregator);
@@ -108,12 +144,34 @@ namespace Unigram.Tasks
                 var statsService = new StatsService();
                 var protoService = new MTProtoService(deviceInfoService, updatesService, cacheService, transportService, connectionService, statsService);
 
+                protoService.Initialized += (s, args) =>
+                {
+                    TLPushUtils.AddToast("ProtoService initialized", "waiting for updates", "default", "started", null, null, "voip");
+
+                    updatesService.LoadStateAndUpdate(() =>
+                    {
+                        TLPushUtils.AddToast("Difference processed", "Difference processed", "default", "started", null, null, "voip");
+
+                        if (_phoneCall == null)
+                        {
+                            TLPushUtils.AddToast("Difference processed", "No call found in difference", "default", "started", null, null, "voip");
+
+                            if (_systemCall != null)
+                            {
+                                _systemCall.NotifyCallEnded();
+                            }
+                        }
+                    });
+                };
+
                 eventAggregator.Subscribe(this);
                 protoService.Initialize();
-                updatesService.LoadStateAndUpdate(() => { });
-
                 _protoService = protoService;
                 _transportService = transportService;
+            }
+            else
+            {
+                TLPushUtils.AddToast("Mediator initialized", "_connection is null: " + (_connection == null), "default", "started", null, null, "voip");
             }
 
             _deferral = deferral;
@@ -143,9 +201,17 @@ namespace Unigram.Tasks
                     }
 
                     var user = responseUser.Result;
+                    var photo = new Uri("ms-appx:///Assets/Logos/Square150x150Logo/Square150x150Logo.png");
+                    if (user.Photo is TLUserProfilePhoto profile && profile.PhotoSmall is TLFileLocation location)
+                    {
+                        var fileName = string.Format("{0}_{1}_{2}.jpg", location.VolumeId, location.LocalId, location.Secret);
+                        var temp = FileUtils.GetTempFileUri(fileName);
+
+                        photo = temp;
+                    }
 
                     var coordinator = VoipCallCoordinator.GetDefault();
-                    var call = coordinator.RequestNewIncomingCall("Unigram", user.FullName, user.DisplayName, null, "Unigram", null, "Unigram", null, VoipPhoneCallMedia.Audio, TimeSpan.FromSeconds(128));
+                    var call = coordinator.RequestNewIncomingCall("Unigram", user.FullName, user.DisplayName, photo, "Unigram", null, "Unigram", null, VoipPhoneCallMedia.Audio, TimeSpan.FromSeconds(128));
 
                     _user = user;
                     _systemCall = call;
@@ -154,7 +220,21 @@ namespace Unigram.Tasks
                 }
                 else if (update.PhoneCall is TLPhoneCallDiscarded)
                 {
-                    _deferral.Complete();
+                    if (_controller != null)
+                    {
+                        _controller.Dispose();
+                        _controller = null;
+                    }
+
+                    if (_systemCall != null)
+                    {
+                        _systemCall.NotifyCallEnded();
+                        _systemCall = null;
+                    }
+                    else if (_deferral != null)
+                    {
+                        _deferral.Complete();
+                    }
                 }
                 else if (update.PhoneCall is TLPhoneCall call)
                 {
@@ -167,22 +247,84 @@ namespace Unigram.Tasks
                     var emoji = EncryptionKeyEmojifier.EmojifyForCall(sha256);
 
                     await UpdateCallAsync(string.Join(" ", emoji));
-                    await Task.Delay(50000);
 
-                    var req = new TLPhoneDiscardCall { Peer = new TLInputPhoneCall { Id = call.Id, AccessHash = call.AccessHash }, Reason = new TLPhoneCallDiscardReasonHangup() };
+                    var response = await SendRequestAsync<TLDataJSON>("phone.getCallConfig", new TLPhoneGetCallConfig());
+                    if (response.IsSucceeded)
+                    {
+                        var responseConfig = await SendRequestAsync<TLConfig>("voip.getConfig", new TLPeerUser());
+                        var config = responseConfig.Result;
 
-                    const string caption = "phone.discardCall";
-                    await SendRequestAsync<TLUpdatesBase>(caption, req);
+                        VoIPControllerWrapper.UpdateServerConfig(response.Result.Data);
 
-                    _systemCall.NotifyCallEnded();
+                        var logFile = ApplicationData.Current.LocalFolder.Path + "\\tgvoip.logFile.txt";
+                        var statsDumpFile = ApplicationData.Current.LocalFolder.Path + "\\tgvoip.statsDump.txt";
+
+                        if (_controller != null)
+                        {
+                            _controller.Dispose();
+                            _controller = null;
+                        }
+
+                        _controller = new VoIPControllerWrapper();
+                        _controller.SetConfig(config.CallPacketTimeoutMs / 1000.0, config.CallConnectTimeoutMs / 1000.0, DataSavingMode.Never, false, false, true, logFile, statsDumpFile);
+
+                        _controller.SetStateCallback(new Boh(_controller));
+                        _controller.SetEncryptionKey(auth_key, false);
+
+                        var connection = call.Connection;
+                        var endpoints = new Endpoint[call.AlternativeConnections.Count + 1];
+                        endpoints[0] = new Endpoint { id = connection.Id, ipv4 = connection.Ip, ipv6 = connection.Ipv6, port = (ushort)connection.Port, peerTag = connection.PeerTag };
+
+                        for (int i = 0; i < call.AlternativeConnections.Count; i++)
+                        {
+                            connection = call.AlternativeConnections[i];
+                            endpoints[i + 1] = new Endpoint { id = connection.Id, ipv4 = connection.Ip, ipv6 = connection.Ipv6, port = (ushort)connection.Port, peerTag = connection.PeerTag };
+                        }
+
+                        _controller.SetPublicEndpoints(endpoints, call.Protocol.IsUdpP2p);
+                        _controller.Start();
+                        _controller.Connect();
+                    }
+
+                    //await Task.Delay(50000);
+
+                    //var req = new TLPhoneDiscardCall { Peer = new TLInputPhoneCall { Id = call.Id, AccessHash = call.AccessHash }, Reason = new TLPhoneCallDiscardReasonHangup() };
+
+                    //const string caption = "phone.discardCall";
+                    //await SendRequestAsync<TLUpdatesBase>(caption, req);
+
+                    //_systemCall.NotifyCallEnded();
+                }
+            }
+        }
+
+        class Boh : IStateCallback
+        {
+            private readonly VoIPControllerWrapper controller;
+
+            public Boh(VoIPControllerWrapper contr)
+            {
+                controller = contr;
+            }
+
+            public void OnCallStateChanged(CallState newState)
+            {
+                if (newState == CallState.Failed)
+                {
+                    var error = controller.GetLastError();
                 }
             }
         }
 
         private async Task UpdateCallAsync(string emoji)
         {
-            var data = TLTuple.Create(_phoneCall, _user, emoji);
-            await _connection.SendMessageAsync(new ValueSet { { "caption", "voip.callInfo" }, { "request", TLSerializationService.Current.Serialize(data) } });
+            if (_connection != null)
+            {
+                TLPushUtils.AddToast("Mediator initialized", "Informing foreground about current call", "default", "started", null, null, "voip");
+
+                var data = TLTuple.Create(_phoneCall, _user, emoji);
+                await _connection.SendMessageAsync(new ValueSet { { "caption", "voip.callInfo" }, { "request", TLSerializationService.Current.Serialize(data) } });
+            }
         }
 
         private byte[] secretP;
@@ -275,7 +417,7 @@ namespace Unigram.Tasks
         {
             if (_phoneCall is TLPhoneCallRequested requested)
             {
-                var req = new TLPhoneDiscardCall { Peer = new TLInputPhoneCall { Id = requested.Id, AccessHash = requested.AccessHash }, Reason = new TLPhoneCallDiscardReasonHangup() };
+                var req = new TLPhoneDiscardCall { Peer = new TLInputPhoneCall { Id = requested.Id, AccessHash = requested.AccessHash }, Reason = new TLPhoneCallDiscardReasonBusy() };
 
                 const string caption = "phone.discardCall";
                 await SendRequestAsync<TLUpdatesBase>(caption, req);
@@ -284,7 +426,7 @@ namespace Unigram.Tasks
             }
         }
 
-        public async Task<MTProtoResponse<T>> SendRequestAsync<T>(string caption, TLObject request)
+        private async Task<MTProtoResponse<T>> SendRequestAsync<T>(string caption, TLObject request)
         {
             if (_protoService != null)
             {
@@ -350,6 +492,13 @@ namespace Unigram.Tasks
                         _systemCall.NotifyCallEnded();
                     }
                 }
+                else if (caption.Equals("phone.mute") || caption.Equals("phone.unmute"))
+                {
+                    if (_controller != null)
+                    {
+                        _controller.SetMicMute(caption.Equals("phone.mute"));
+                    }
+                }
             }
             else if (message.ContainsKey("voip.callInfo"))
             {
@@ -374,6 +523,17 @@ namespace Unigram.Tasks
             if (_initialized)
             {
                 ProcessUpdates();
+            }
+        }
+
+        public void Dispose()
+        {
+            TLPushUtils.AddToast("Releasing background task", "Disposing mediator", "default", "started", null, null, "voip");
+
+            if (_protoService != null)
+            {
+                _protoService.Dispose();
+                _transportService.Close();
             }
         }
     }

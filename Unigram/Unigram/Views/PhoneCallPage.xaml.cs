@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices.WindowsRuntime;
+using Telegram.Api.Helpers;
 using Telegram.Api.Services;
 using Telegram.Api.Services.Cache;
 using Telegram.Api.TL;
@@ -14,7 +15,9 @@ using Unigram.Converters;
 using Windows.ApplicationModel.Core;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.Foundation.Metadata;
 using Windows.Graphics.Effects;
+using Windows.Phone.Media.Devices;
 using Windows.UI.Composition;
 using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
@@ -38,18 +41,35 @@ namespace Unigram.Views
     public sealed partial class PhoneCallPage : Page
     {
         private Visual _descriptionVisual;
-        private Visual _smallVisual;
         private Visual _largeVisual;
         private SpriteVisual _blurVisual;
         private CompositionEffectBrush _blurBrush;
         private Compositor _compositor;
 
+        private bool _collapsed = true;
+
         public PhoneCallPage()
         {
             this.InitializeComponent();
 
+            #region Routing
+
+            var routing = ApiInformation.IsApiContractPresent("Windows.Phone.PhoneContract", 1);
+            if (routing)
+            {
+                Routing.Visibility = Visibility.Visible;
+                AudioRoutingManager.GetDefault().AudioEndpointChanged += AudioEndpointChanged;
+            }
+            else
+            {
+                Routing.Visibility = Visibility.Collapsed;
+            }
+
+            #endregion
+
+            #region Composition
+
             _descriptionVisual = ElementCompositionPreview.GetElementVisual(DescriptionLabel);
-            _smallVisual = ElementCompositionPreview.GetElementVisual(SmallPanel);
             _largeVisual = ElementCompositionPreview.GetElementVisual(LargePanel);
             _compositor = _largeVisual.Compositor;
 
@@ -57,6 +77,7 @@ namespace Unigram.Views
             {
                 Name = "Blur",
                 BlurAmount = 0,
+                BorderMode = EffectBorderMode.Hard,
                 Source = new CompositionEffectSourceParameter("backdrop")
             };
 
@@ -70,20 +91,37 @@ namespace Unigram.Views
             _blurVisual.Brush = _blurBrush;
 
             ElementCompositionPreview.SetElementChildVisual(BlurPanel, _blurVisual);
+
+            #endregion
+
+            //var titleBar = ApplicationView.GetForCurrentView().TitleBar;
+            //var coreBar = CoreApplication.GetCurrentView().TitleBar;
+            //coreBar.IsVisibleChanged += CoreBar_IsVisibleChanged;
+            //coreBar.ExtendViewIntoTitleBar = true;
         }
+
+        //private void CoreBar_IsVisibleChanged(CoreApplicationViewTitleBar sender, object args)
+        //{
+        //    Debug.WriteLine("TitleBar height: " + sender.Height);
+
+        //    SmallEmojiLabel.Margin = new Thickness(sender.SystemOverlayLeftInset, 20, sender.SystemOverlayRightInset, 0);
+        //    OnSizeChanged(null, null);
+        //}
 
         private void OnSizeChanged(object sender, SizeChangedEventArgs e)
         {
             _blurVisual.Size = new Vector2((float)this.ActualWidth, (float)this.ActualHeight);
 
-            var transform = SmallPanel.TransformToVisual(LargeEmojiLabel);
-            var position = transform.TransformPoint(new Point());
+            if (_collapsed)
+            {
+                var transform = SmallPanel.TransformToVisual(LargeEmojiLabel);
+                var position = transform.TransformPoint(new Point());
 
-            _descriptionVisual.Opacity = 0;
-            _smallVisual.Opacity = 0;
-            _largeVisual.Offset = new Vector3(position.ToVector2(), 0);
-            _largeVisual.Scale = new Vector3(0.5f);
-            _blurBrush.Properties.InsertScalar("Blur.Bluramount", 0);
+                _descriptionVisual.Opacity = 0;
+                _largeVisual.Offset = new Vector3(position.ToVector2(), 0);
+                _largeVisual.Scale = new Vector3(0.5f);
+                _blurBrush.Properties.InsertScalar("Blur.Bluramount", 0);
+            }
         }
 
         public void SetCall(TLTuple<TLPhoneCallBase, TLUserBase, string> tuple)
@@ -95,6 +133,7 @@ namespace Unigram.Views
             if (tuple.Item2 is TLUser user)
             {
                 Image.Source = DefaultPhotoConverter.Convert(user.Photo, true) as ImageSource;
+                TextBlockHelper.SetMarkdown(DescriptionLabel, string.Format("If these emoji are the same on **{0}**'s screen, this call is 100% secure.", user.FirstName));
             }
 
             if (tuple.Item3.Length > 0)
@@ -118,7 +157,6 @@ namespace Unigram.Views
             var position = transform.TransformPoint(new Point());
 
             _descriptionVisual.Opacity = 0;
-            _smallVisual.Opacity = 0;
             _largeVisual.Offset = new Vector3(position.ToVector2(), 0);
             _largeVisual.Scale = new Vector3(0.5f);
             _blurBrush.Properties.InsertScalar("Blur.Bluramount", 0);
@@ -143,6 +181,7 @@ namespace Unigram.Views
             _largeVisual.StartAnimation("Offset", offsetAnimation);
             _largeVisual.StartAnimation("Scale", scaleAnimation);
             _blurBrush.Properties.StartAnimation("Blur.BlurAmount", blurAnimation);
+            _collapsed = false;
 
             batch.End();
 
@@ -161,6 +200,12 @@ namespace Unigram.Views
 
         private void LargeEmojiLabel_Tapped(object sender, TappedRoutedEventArgs e)
         {
+            if (_descriptionVisual.Opacity == 0)
+            {
+                SmallEmojiLabel_Tapped(null, null);
+                return;
+            }
+
             var transform = SmallPanel.TransformToVisual(LargeEmojiLabel);
             var position = transform.TransformPoint(new Point());
 
@@ -184,8 +229,49 @@ namespace Unigram.Views
             _largeVisual.StartAnimation("Offset", offsetAnimation);
             _largeVisual.StartAnimation("Scale", scaleAnimation);
             _blurBrush.Properties.StartAnimation("Blur.BlurAmount", blurAnimation);
+            _collapsed = true;
 
             batch.End();
+        }
+
+        private async void Mute_Click(object sender, RoutedEventArgs e)
+        {
+            var toggle = sender as ToggleButton;
+            toggle.IsChecked = !toggle.IsChecked;
+            await VoIPConnection.Current.SendRequestAsync(toggle.IsChecked.Value ? "phone.mute" : "phone.unmute");
+        }
+
+        private void Routing_Click(object sender, RoutedEventArgs e)
+        {
+            var routingManager = AudioRoutingManager.GetDefault();
+
+            var toggle = sender as ToggleButton;
+            toggle.IsChecked = !toggle.IsChecked;
+
+            if (toggle.IsChecked.Value)
+            {
+                routingManager.SetAudioEndpoint(AudioRoutingEndpoint.Speakerphone);
+            }
+            else
+            {
+                if (routingManager.AvailableAudioEndpoints.HasFlag(AvailableAudioRoutingEndpoints.Bluetooth))
+                {
+                    routingManager.SetAudioEndpoint(AudioRoutingEndpoint.Bluetooth);
+                }
+                else if (routingManager.AvailableAudioEndpoints.HasFlag(AvailableAudioRoutingEndpoints.Earpiece))
+                {
+                    routingManager.SetAudioEndpoint(AudioRoutingEndpoint.Earpiece);
+                }
+            }
+        }
+
+        private async void AudioEndpointChanged(AudioRoutingManager sender, object args)
+        {
+            await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
+            {
+                var routingManager = AudioRoutingManager.GetDefault();
+                Routing.IsChecked = routingManager.GetAudioEndpoint() == AudioRoutingEndpoint.Speakerphone;
+            });
         }
     }
 }

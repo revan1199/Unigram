@@ -109,13 +109,18 @@ namespace Unigram
             container.ContainerBuilder.RegisterType<SignInSentCodeViewModel>();
             container.ContainerBuilder.RegisterType<SignInPasswordViewModel>();
             container.ContainerBuilder.RegisterType<MainViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<ShareViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<DialogSendLocationViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<DialogViewModel>();
             container.ContainerBuilder.RegisterType<DialogStickersViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<UserDetailsViewModel>();
             container.ContainerBuilder.RegisterType<UserCommonChatsViewModel>();
             container.ContainerBuilder.RegisterType<ChatDetailsViewModel>();// .SingleInstance();
+            container.ContainerBuilder.RegisterType<ChatInviteViewModel>();// .SingleInstance();
+            container.ContainerBuilder.RegisterType<ChatInviteLinkViewModel>();// .SingleInstance();
             container.ContainerBuilder.RegisterType<ChannelDetailsViewModel>();// .SingleInstance();
+            container.ContainerBuilder.RegisterType<ChannelEditViewModel>();// .SingleInstance();
+            container.ContainerBuilder.RegisterType<ChannelEditTypeViewModel>();// .SingleInstance();
             container.ContainerBuilder.RegisterType<ChannelAdminsViewModel>();// .SingleInstance();
             container.ContainerBuilder.RegisterType<ChannelKickedViewModel>();// .SingleInstance();
             container.ContainerBuilder.RegisterType<ChannelParticipantsViewModel>();// .SingleInstance();
@@ -127,6 +132,7 @@ namespace Unigram
             container.ContainerBuilder.RegisterType<CreateChatStep2ViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<InstantViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<SettingsViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<SettingsGeneralViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<SettingsStorageViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<SettingsStatsViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<FeaturedStickersViewModel>().SingleInstance();

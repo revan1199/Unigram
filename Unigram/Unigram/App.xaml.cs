@@ -41,6 +41,8 @@ using Telegram.Api.TL;
 using System.Collections.Generic;
 using Unigram.Core.Services;
 using Template10.Controls;
+using Windows.Foundation;
+using Windows.ApplicationModel.Contacts;
 
 namespace Unigram
 {
@@ -157,14 +159,46 @@ namespace Unigram
             return base.OnInitializeAsync(args);
         }
 
-        public override Task OnStartAsync(StartKind startKind, IActivatedEventArgs args)
+        public override async Task OnStartAsync(StartKind startKind, IActivatedEventArgs args)
         {
-            //NavigationService.Navigate(typeof(PhoneCallPage));
+            //NavigationService.Navigate(typeof(PlaygroundPage2));
+            //return Task.CompletedTask;
+
+            //PhoneCallPage newPlayer = null;
+            //CoreApplicationView newView = CoreApplication.CreateNewView();
+            //var newViewId = 0;
+            //await newView.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+            //{
+            //    newPlayer = new PhoneCallPage();
+            //    Window.Current.Content = newPlayer;
+            //    Window.Current.Activate();
+            //    newViewId = ApplicationView.GetForCurrentView().Id;
+            //});
+
+            //await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
+            //{
+            //    var overlay = ApplicationView.GetForCurrentView().IsViewModeSupported(ApplicationViewMode.CompactOverlay);
+            //    if (overlay)
+            //    {
+            //        var preferences = ViewModePreferences.CreateDefault(ApplicationViewMode.CompactOverlay);
+            //        preferences.CustomSize = new Size(340, 200);
+
+            //        var viewShown = await ApplicationViewSwitcher.TryShowAsViewModeAsync(newViewId, ApplicationViewMode.CompactOverlay, preferences);
+            //    }
+            //    else
+            //    {
+            //        //await ApplicationViewSwitcher.SwitchAsync(newViewId);
+            //        await ApplicationViewSwitcher.TryShowAsStandaloneAsync(newViewId);
+            //    }
+            //});
+
+            //return;
 
             if (SettingsHelper.IsAuthorized)
             {
                 var share = args as ShareTargetActivatedEventArgs;
                 var voice = args as VoiceCommandActivatedEventArgs;
+                var contact = args as ContactPanelActivatedEventArgs;
 
                 if (share != null)
                 {
@@ -190,6 +224,27 @@ namespace Unigram
                         NavigationService.Navigate(typeof(MainPage));
                     }
                 }
+                else if (contact != null)
+                {
+                    var backgroundBrush = Application.Current.Resources["TelegramBackgroundTitlebarBrush"] as SolidColorBrush;
+                    contact.ContactPanel.HeaderColor = backgroundBrush.Color;
+
+                    var store = await ContactManager.RequestStoreAsync(ContactStoreAccessType.AppContactsReadWrite);
+                    var annotationStore = await ContactManager.RequestAnnotationStoreAsync(ContactAnnotationStoreAccessType.AppAnnotationsReadWrite);
+                    var full = await store.GetContactAsync(contact.Contact.Id);
+                    var annotations = await annotationStore.FindAnnotationsForContactAsync(full);
+
+                    var remote = annotations[0].RemoteId;
+
+                    //var user = InMemoryCacheService.Current.GetUser(int.Parse(remote.Substring(1)));
+                    //if (user != null)
+                    //{
+                    //    NavigationService.Navigate(typeof(DialogPage), user.ToPeer());
+                    //}
+
+                    //NavigationService.Navigate(typeof(MainPage), $"from_id={remote.Substring(1)}");
+                    NavigationService.Navigate(typeof(DialogPage), new TLPeerUser { UserId = int.Parse(remote.Substring(1)) });
+                }
                 else
                 {
                     var activate = args as ToastNotificationActivatedEventArgs;
@@ -214,11 +269,11 @@ namespace Unigram
 
             ShowStatusBar();
             ColourTitleBar();
-            ApplicationView.GetForCurrentView().SetPreferredMinSize(new Windows.Foundation.Size(360, 500));
+            ApplicationView.GetForCurrentView().SetPreferredMinSize(new Windows.Foundation.Size(320, 500));
             SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility = AppViewBackButtonVisibility.Visible;
 
             Task.Run(() => OnStartSync());
-            return Task.CompletedTask;
+            //return Task.CompletedTask;
         }
 
         private async void OnStartSync()
@@ -230,12 +285,17 @@ namespace Unigram
             TileUpdateManager.CreateTileUpdaterForApplication().Clear();
             ToastNotificationManager.History.Clear();
 
-#if !DEBUG && !PREVIEW && !RELEASE
+#if !DEBUG && !PREVIEW
             Execute.BeginOnThreadPool(async () =>
             {
                 await new AppUpdateService().CheckForUpdatesAsync();
             });
 #endif
+
+            //if (ApiInformation.IsTypePresent("Windows.ApplicationModel.FullTrustProcessLauncher"))
+            //{
+            //    await FullTrustProcessLauncher.LaunchFullTrustProcessForCurrentAppAsync();
+            //}
 
             try
             {
@@ -296,37 +356,45 @@ namespace Unigram
             try
             {
                 // Changes to the titlebar (colour, and such)
-                ApplicationViewTitleBar titlebar = ApplicationView.GetForCurrentView().TitleBar;
                 CoreApplication.GetCurrentView().TitleBar.ExtendViewIntoTitleBar = false;
 
-                // Accent Color
-                var accentBrush = Application.Current.Resources["SystemControlHighlightAccentBrush"] as SolidColorBrush;
-                var titleBrush = Application.Current.Resources["TelegramBackgroundTitlebarBrush"] as SolidColorBrush;
-                var subtitleBrush = Application.Current.Resources["TelegramBackgroundSubtitleBarBrush"] as SolidColorBrush;
+                var titlebar = ApplicationView.GetForCurrentView().TitleBar;
+                var backgroundBrush = Application.Current.Resources["TelegramBackgroundTitlebarBrush"] as SolidColorBrush;
+                var foregroundBrush = Application.Current.Resources["SystemControlForegroundBaseHighBrush"] as SolidColorBrush;
 
-                // Foreground
-                titlebar.ButtonForegroundColor = Colors.White;
-                titlebar.ButtonHoverForegroundColor = Colors.White;
-                titlebar.ButtonInactiveForegroundColor = Colors.LightGray;
-                titlebar.ButtonPressedForegroundColor = Colors.White;
-                titlebar.ForegroundColor = Colors.White;
-                titlebar.InactiveForegroundColor = Colors.LightGray;
+                titlebar.BackgroundColor = backgroundBrush.Color;
+                titlebar.ForegroundColor = foregroundBrush.Color;
+                titlebar.ButtonBackgroundColor = backgroundBrush.Color;
+                titlebar.ButtonForegroundColor = foregroundBrush.Color;
 
-                // Background
-                titlebar.BackgroundColor = titleBrush.Color;
-                titlebar.ButtonBackgroundColor = titleBrush.Color;
+                //// Accent Color
+                //var accentBrush = Application.Current.Resources["SystemControlHighlightAccentBrush"] as SolidColorBrush;
+                //var titleBrush = Application.Current.Resources["TelegramBackgroundTitlebarBrush"] as SolidColorBrush;
+                //var subtitleBrush = Application.Current.Resources["TelegramBackgroundSubtitleBarBrush"] as SolidColorBrush;
 
-                titlebar.InactiveBackgroundColor = subtitleBrush.Color;
-                titlebar.ButtonInactiveBackgroundColor = subtitleBrush.Color;
+                //// Foreground
+                //titlebar.ButtonForegroundColor = Colors.White;
+                //titlebar.ButtonHoverForegroundColor = Colors.White;
+                //titlebar.ButtonInactiveForegroundColor = Colors.LightGray;
+                //titlebar.ButtonPressedForegroundColor = Colors.White;
+                //titlebar.ForegroundColor = Colors.White;
+                //titlebar.InactiveForegroundColor = Colors.LightGray;
 
-                titlebar.ButtonHoverBackgroundColor = Helpers.ColorsHelper.ChangeShade(titleBrush.Color, -0.06f);
-                titlebar.ButtonPressedBackgroundColor = Helpers.ColorsHelper.ChangeShade(titleBrush.Color, -0.09f);
+                //// Background
+                //titlebar.BackgroundColor = titleBrush.Color;
+                //titlebar.ButtonBackgroundColor = titleBrush.Color;
 
-                // Branding colours
-                //titlebar.BackgroundColor = Color.FromArgb(255, 54, 173, 225);
-                //titlebar.ButtonBackgroundColor = Color.FromArgb(255, 54, 173, 225);
-                //titlebar.ButtonHoverBackgroundColor = Color.FromArgb(255, 69, 179, 227);
-                //titlebar.ButtonPressedBackgroundColor = Color.FromArgb(255, 84, 185, 229);
+                //titlebar.InactiveBackgroundColor = subtitleBrush.Color;
+                //titlebar.ButtonInactiveBackgroundColor = subtitleBrush.Color;
+
+                //titlebar.ButtonHoverBackgroundColor = Helpers.ColorsHelper.ChangeShade(titleBrush.Color, -0.06f);
+                //titlebar.ButtonPressedBackgroundColor = Helpers.ColorsHelper.ChangeShade(titleBrush.Color, -0.09f);
+
+                //// Branding colours
+                ////titlebar.BackgroundColor = Color.FromArgb(255, 54, 173, 225);
+                ////titlebar.ButtonBackgroundColor = Color.FromArgb(255, 54, 173, 225);
+                ////titlebar.ButtonHoverBackgroundColor = Color.FromArgb(255, 69, 179, 227);
+                ////titlebar.ButtonPressedBackgroundColor = Color.FromArgb(255, 84, 185, 229);
             }
             catch (Exception ex)
             {

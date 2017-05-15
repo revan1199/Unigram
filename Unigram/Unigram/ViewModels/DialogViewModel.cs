@@ -177,6 +177,19 @@ namespace Unigram.ViewModels
             }
         }
 
+        private bool _isPhoneCallsAvailable;
+        public bool IsPhoneCallsAvailable
+        {
+            get
+            {
+                return _isPhoneCallsAvailable;
+            }
+            set
+            {
+                Set(ref _isPhoneCallsAvailable, value);
+            }
+        }
+
         private ItemsUpdatingScrollMode _updatingScrollMode;
         public ItemsUpdatingScrollMode UpdatingScrollMode
         {
@@ -484,104 +497,6 @@ namespace Unigram.ViewModels
             _isLoadingPreviousSlice = false;
         }
 
-        public async Task LoadFirstSliceAsyncASDFASRFHJNDKDFKJFD()
-        {
-            if (_isLoadingNextSlice || _isLoadingPreviousSlice || _peer == null) return;
-            _isLoadingNextSlice = true;
-            _isLoadingPreviousSlice = true;
-
-            UpdatingScrollMode = ItemsUpdatingScrollMode.KeepItemsInView;
-
-            Debug.WriteLine("DialogViewModel: LoadFirstSliceAsync");
-
-            var already = new List<long>();
-            var sets = new Dictionary<long, TLInputStickerSetBase>();
-            var lastId = 0;
-
-            while (already.Count < 250 || lastId < int.MaxValue)
-            {
-                var result = await ProtoService.GetHistoryAsync(Peer, Peer.ToPeer(), true, 0, 0, lastId, 100);
-                if (result.IsSucceeded)
-                {
-                    foreach (var message in result.Result.Messages.OfType<TLMessage>())
-                    {
-                        if (message.Media is TLMessageMediaDocument documentMedia && documentMedia.Document is TLDocument document && message.IsSticker())
-                        {
-                            var set = document.Attributes.OfType<TLDocumentAttributeSticker>().FirstOrDefault().StickerSet as TLInputStickerSetID;
-
-                            already.Add(documentMedia.Document.Id);
-
-                            if (sets.ContainsKey(set.Id))
-                            {
-                                await ProtoService.DeleteMessagesAsync(((TLChannel)With).ToInputChannel(), new TLVector<int> { message.Id });
-                            }
-
-                            sets[set.Id] = document.Attributes.OfType<TLDocumentAttributeSticker>().FirstOrDefault().StickerSet;
-                        }
-                    }
-
-                    lastId = result.Result.Messages.LastOrDefault()?.Id ?? int.MaxValue;
-
-                    if (result.Result.Messages.Count == 0)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            foreach (var set in sets)
-            {
-                await ProtoService.InstallStickerSetAsync(set.Value, false);
-                await Task.Delay(200);
-            }
-
-            return;
-
-            var response = await ProtoService.GetAllStickersAsync(new byte[0]);
-            if (response.IsSucceeded)
-            {
-                if (response.Result is TLMessagesAllStickers stickers)
-                {
-                    foreach (var set in stickers.Sets)
-                    {
-                        if (already.Count == 200)
-                        {
-                            return;
-                        }
-
-                        var send = false;
-                        var documents = stickers.Documents.OfType<TLDocument>().Where(y => ((TLInputStickerSetID)y.Attributes.OfType<TLDocumentAttributeSticker>().FirstOrDefault().StickerSet).Id == set.Id).ToList();
-                        var first = documents.FirstOrDefault(x => already.Contains(x.Id));
-                        if (first == null)
-                        {
-                            send = true;
-                        }
-
-                        if (send)
-                        {
-                            var media = new TLMessageMediaDocument { Document = documents[0] };
-                            var date = TLUtils.DateToUniversalTimeTLInt(ProtoService.ClientTicksDelta, DateTime.Now);
-                            var message = TLUtils.GetMessage(SettingsHelper.UserId, Peer.ToPeer(), TLMessageState.Sending, true, true, date, string.Empty, media, TLLong.Random(), null);
-
-                            var input = new TLInputMediaDocument
-                            {
-                                Id = new TLInputDocument
-                                {
-                                    Id = documents[0].Id,
-                                    AccessHash = documents[0].AccessHash
-                                }
-                            };
-
-                            already.Add(documents[0].Id);
-
-                            await ProtoService.SendMediaAsync(Peer, input, message);
-                            await Task.Delay(500);
-                        }
-                    }
-                }
-            }
-        }
-
         public async void ProcessReplies(IList<TLMessageBase> messages)
         {
             var replyIds = new TLVector<int>();
@@ -695,10 +610,14 @@ namespace Unigram.ViewModels
             var participant = GetParticipant(parameter as TLPeerBase);
             if (participant is TLUser user)
             {
-                var full = await ProtoService.GetFullUserAsync(new TLInputUser { UserId = user.Id, AccessHash = user.AccessHash ?? 0 });
-
                 With = user;
                 Peer = new TLInputPeerUser { UserId = user.Id, AccessHash = user.AccessHash ?? 0 };
+
+                var full = await ProtoService.GetFullUserAsync(new TLInputUser { UserId = user.Id, AccessHash = user.AccessHash ?? 0 });
+                if (full.IsSucceeded)
+                {
+                    IsPhoneCallsAvailable = full.Result.IsPhoneCallsAvailable;
+                }
             }
             else if (participant is TLChannel channel)
             {
@@ -713,6 +632,8 @@ namespace Unigram.ViewModels
                         return;
                     }
                 }
+
+                IsPhoneCallsAvailable = false;
 
                 With = channel;
                 Peer = new TLInputPeerChannel { ChannelId = channel.Id, AccessHash = channel.AccessHash ?? 0 };
@@ -763,6 +684,8 @@ namespace Unigram.ViewModels
             }
             else if (participant is TLChat chat)
             {
+                IsPhoneCallsAvailable = false;
+
                 With = chat;
                 Peer = new TLInputPeerChat { ChatId = chat.Id };
 
@@ -2138,9 +2061,9 @@ namespace Unigram.ViewModels
         private async void ToggleMuteExecute()
         {
             var channel = With as TLChannel;
-            if (channel != null)
+            if (channel != null && _currentDialog != null)
             {
-                var notifySettings = channel.NotifySettings as TLPeerNotifySettings;
+                var notifySettings = _currentDialog.NotifySettings as TLPeerNotifySettings;
                 if (notifySettings != null)
                 {
                     var muteUntil = notifySettings.MuteUntil == int.MaxValue ? 0 : int.MaxValue;
@@ -2156,20 +2079,28 @@ namespace Unigram.ViewModels
                     if (response.IsSucceeded)
                     {
                         notifySettings.MuteUntil = muteUntil;
-                        channel.RaisePropertyChanged(() => channel.NotifySettings);
+                        channel.RaisePropertyChanged(() => _currentDialog.NotifySettings);
 
                         var dialog = CacheService.GetDialog(Peer.ToPeer());
                         if (dialog != null)
                         {
-                            dialog.NotifySettings = channel.NotifySettings;
+                            dialog.NotifySettings = _currentDialog.NotifySettings;
                             dialog.RaisePropertyChanged(() => dialog.NotifySettings);
                             dialog.RaisePropertyChanged(() => dialog.Self);
 
-                            var dialogChannel = dialog.With as TLChannel;
-                            if (dialogChannel != null)
+                            var chatFull = CacheService.GetFullChat(channel.Id);
+                            if (chatFull != null)
                             {
-                                dialogChannel.NotifySettings = channel.NotifySettings;
+                                chatFull.NotifySettings = _currentDialog.NotifySettings;
+                                chatFull.RaisePropertyChanged(() => chatFull.NotifySettings);
                             }
+
+                            // TODO: 06/05/2017
+                            //var dialogChannel = dialog.With as TLChannel;
+                            //if (dialogChannel != null)
+                            //{
+                            //    dialogChannel.NotifySettings = channel.NotifySettings;
+                            //}
                         }
 
                         CacheService.Commit();
@@ -2187,9 +2118,9 @@ namespace Unigram.ViewModels
         private async void ToggleSilentExecute()
         {
             var channel = With as TLChannel;
-            if (channel != null)
+            if (channel != null && _currentDialog != null)
             {
-                var notifySettings = channel.NotifySettings as TLPeerNotifySettings;
+                var notifySettings = _currentDialog.NotifySettings as TLPeerNotifySettings;
                 if (notifySettings != null)
                 {
                     var silent = !notifySettings.IsSilent;
@@ -2205,20 +2136,28 @@ namespace Unigram.ViewModels
                     if (response.IsSucceeded)
                     {
                         notifySettings.IsSilent = silent;
-                        channel.RaisePropertyChanged(() => channel.NotifySettings);
+                        channel.RaisePropertyChanged(() => _currentDialog.NotifySettings);
 
                         var dialog = CacheService.GetDialog(Peer.ToPeer());
                         if (dialog != null)
                         {
-                            dialog.NotifySettings = channel.NotifySettings;
+                            dialog.NotifySettings = _currentDialog.NotifySettings;
                             dialog.RaisePropertyChanged(() => dialog.NotifySettings);
                             dialog.RaisePropertyChanged(() => dialog.Self);
 
-                            var dialogChannel = dialog.With as TLChannel;
-                            if (dialogChannel != null)
+                            var chatFull = CacheService.GetFullChat(channel.Id);
+                            if (chatFull != null)
                             {
-                                dialogChannel.NotifySettings = channel.NotifySettings;
+                                chatFull.NotifySettings = _currentDialog.NotifySettings;
+                                chatFull.RaisePropertyChanged(() => chatFull.NotifySettings);
                             }
+
+                            // TODO: 06/05/2017
+                            //var dialogChannel = dialog.With as TLChannel;
+                            //if (dialogChannel != null)
+                            //{
+                            //    dialogChannel.NotifySettings = channel.NotifySettings;
+                            //}
                         }
 
                         CacheService.Commit();

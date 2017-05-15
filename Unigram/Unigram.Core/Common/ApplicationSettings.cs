@@ -77,16 +77,54 @@ namespace Unigram.Common
         }
 
 
-
+        private bool? _isSendByEnterEnabled;
         public bool IsSendByEnterEnabled
         {
             get
             {
-                return GetValueOrDefault("IsSendByEnterEnabled", true);
+                if (_isSendByEnterEnabled == null)
+                    _isSendByEnterEnabled = GetValueOrDefault("IsSendByEnterEnabled", true);
+
+                return _isSendByEnterEnabled ?? true;
             }
             set
             {
+                _isSendByEnterEnabled = value;
                 AddOrUpdateValue("IsSendByEnterEnabled", value);
+            }
+        }
+
+        private bool? _isReplaceEmojiEnabled;
+        public bool IsReplaceEmojiEnabled
+        {
+            get
+            {
+                if (_isReplaceEmojiEnabled == null)
+                    _isReplaceEmojiEnabled = GetValueOrDefault("IsReplaceEmojiEnabled", true);
+
+                return _isReplaceEmojiEnabled ?? true;
+            }
+            set
+            {
+                _isReplaceEmojiEnabled = value;
+                AddOrUpdateValue("IsReplaceEmojiEnabled", value);
+            }
+        }
+
+        private bool? _isContactsSyncEnabled;
+        public bool IsContactsSyncEnabled
+        {
+            get
+            {
+                if (_isContactsSyncEnabled == null)
+                    _isContactsSyncEnabled = GetValueOrDefault("IsContactsSyncEnabled", true);
+
+                return _isContactsSyncEnabled ?? true;
+            }
+            set
+            {
+                _isContactsSyncEnabled = value;
+                AddOrUpdateValue("IsContactsSyncEnabled", value);
             }
         }
 

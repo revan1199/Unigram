@@ -147,8 +147,8 @@ namespace Unigram.Views
 
                 ElementCompositionPreview.SetImplicitShowAnimation(ManagePanel, showShowAnimation);
                 ElementCompositionPreview.SetImplicitHideAnimation(ManagePanel, hideHideAnimation);
-                ElementCompositionPreview.SetImplicitShowAnimation(btnDialogInfo, hideShowAnimation);
-                ElementCompositionPreview.SetImplicitHideAnimation(btnDialogInfo, showHideAnimation);
+                ElementCompositionPreview.SetImplicitShowAnimation(InfoPanel, hideShowAnimation);
+                ElementCompositionPreview.SetImplicitHideAnimation(InfoPanel, showHideAnimation);
             }
 
             base.OnNavigatedTo(e);
@@ -160,8 +160,8 @@ namespace Unigram.Views
             {
                 ElementCompositionPreview.SetImplicitShowAnimation(ManagePanel, null);
                 ElementCompositionPreview.SetImplicitHideAnimation(ManagePanel, null);
-                ElementCompositionPreview.SetImplicitShowAnimation(btnDialogInfo, null);
-                ElementCompositionPreview.SetImplicitHideAnimation(btnDialogInfo, null);
+                ElementCompositionPreview.SetImplicitShowAnimation(InfoPanel, null);
+                ElementCompositionPreview.SetImplicitHideAnimation(InfoPanel, null);
             }
 
             base.OnNavigatingFrom(e);
@@ -184,12 +184,12 @@ namespace Unigram.Views
             if (ViewModel.SelectionMode == ListViewSelectionMode.None)
             {
                 ManagePanel.Visibility = Visibility.Collapsed;
-                btnDialogInfo.Visibility = Visibility.Visible;
+                InfoPanel.Visibility = Visibility.Visible;
             }
             else
             {
                 ManagePanel.Visibility = Visibility.Visible;
-                btnDialogInfo.Visibility = Visibility.Collapsed;
+                InfoPanel.Visibility = Visibility.Collapsed;
             }
 
             ViewModel.MessagesForwardCommand.RaiseCanExecuteChanged();
@@ -816,6 +816,7 @@ namespace Unigram.Views
             var point = _slideVisual.Offset;
             point.X = (float)e.NewSize.Width + 36;
 
+            _slideVisual.Opacity = 0;
             _slideVisual.Offset = point;
             _slideVisual.Size = new Vector2((float)e.NewSize.Width, (float)e.NewSize.Height);
         }
@@ -824,6 +825,8 @@ namespace Unigram.Views
         {
             var slideWidth = (float)SlidePanel.ActualWidth;
             var elapsedWidth = (float)ElapsedPanel.ActualWidth;
+
+            _slideVisual.Opacity = 1;
 
             var batch = _compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
 
@@ -899,6 +902,7 @@ namespace Unigram.Views
                 var point = _slideVisual.Offset;
                 point.X = _slideVisual.Size.X + 36;
 
+                _slideVisual.Opacity = 0;
                 _slideVisual.Offset = point;
 
                 point = _elapsedVisual.Offset;
