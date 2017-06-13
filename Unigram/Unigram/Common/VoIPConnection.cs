@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Threading.Tasks;
+using Telegram.Api.Helpers;
 using Telegram.Api.Services;
 using Telegram.Api.Services.Cache;
 using Telegram.Api.TL;
@@ -18,9 +19,11 @@ using Windows.ApplicationModel.AppService;
 using Windows.ApplicationModel.Core;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.Foundation.Metadata;
 using Windows.UI.Core;
 using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
+using Windows.UI.Xaml.Controls;
 
 namespace Unigram.Common
 {
@@ -44,27 +47,36 @@ namespace Unigram.Common
 
         public async Task<bool> ConnectAsync()
         {
-            if (!IsConnected)
+            try
             {
-                _appConnection = new AppServiceConnection
+                if (!IsConnected)
                 {
-                    AppServiceName = nameof(VoIPServiceTask),
-                    PackageFamilyName = Package.Current.Id.FamilyName
-                };
+                    _appConnection = new AppServiceConnection
+                    {
+                        AppServiceName = nameof(VoIPServiceTask),
+                        PackageFamilyName = Package.Current.Id.FamilyName
+                    };
 
-                _appConnection.ServiceClosed += OnServiceClosed;
-                _appConnection.RequestReceived += OnRequestReceived;
+                    _appConnection.ServiceClosed += OnServiceClosed;
+                    _appConnection.RequestReceived += OnRequestReceived;
 
-                var status = await _appConnection.OpenAsync();
+                    var status = await _appConnection.OpenAsync();
 
-                IsConnected = status == AppServiceConnectionStatus.Success;
+                    IsConnected = status == AppServiceConnectionStatus.Success;
+                }
+            }
+            catch
+            {
+                IsConnected = false;
             }
 
             return IsConnected;
         }
 
-        public IAsyncOperation<AppServiceResponse> SendUpdateAsync(TLUpdateBase update)
+        public IAsyncOperation<AppServiceResponse> SendUpdateAsync(TLUpdatePhoneCall update)
         {
+            Debug.WriteLine("[{0:HH:mm:ss.fff}] Received VoIP update: " + update.PhoneCall, DateTime.Now);
+
             try
             {
                 return _appConnection.SendMessageAsync(new ValueSet { { nameof(update), TLSerializationService.Current.Serialize(update) } });
@@ -86,6 +98,35 @@ namespace Unigram.Common
                 return AsyncInfo.Run(token => Task.FromResult(null as AppServiceResponse));
             }
         }
+
+        public IAsyncOperation<AppServiceResponse> SendRequestAsync(string caption, TLObject request)
+        {
+            try
+            {
+                return _appConnection.SendMessageAsync(new ValueSet { { nameof(caption), caption }, { nameof(request), TLSerializationService.Current.Serialize(request) } });
+            }
+            catch
+            {
+                return AsyncInfo.Run(token => Task.FromResult(null as AppServiceResponse));
+            }
+        }
+
+        public async Task<Tuple<string, string>> GetDebugStringAsync()
+        {
+            var response = await SendRequestAsync("voip.debugString");
+            if (response != null && response.Status == AppServiceResponseStatus.Success)
+            {
+                response.Message.TryGetValue("result", out object result);
+                response.Message.TryGetValue("version", out object version);
+
+                return Tuple.Create(result as string, version as string);
+            }
+
+            return Tuple.Create(string.Empty, string.Empty);
+        }
+
+        private PhoneCallPage _phoneView;
+        private bool _phoneViewExists;
 
         private async void OnRequestReceived(AppServiceConnection sender, AppServiceRequestReceivedEventArgs args)
         {
@@ -121,38 +162,86 @@ namespace Unigram.Common
                     {
                         using (var from = new TLBinaryReader(data))
                         {
-                            var tuple = new TLTuple<TLPhoneCallBase, TLUserBase, string>(from);
+                            var tupleBase = new TLTuple<int, TLPhoneCallBase, TLUserBase, string>(from);
+                            var tuple = new TLTuple<TLPhoneCallState, TLPhoneCallBase, TLUserBase, string>((TLPhoneCallState)tupleBase.Item1, tupleBase.Item2, tupleBase.Item3, tupleBase.Item4);
 
-                            PhoneCallPage newPlayer = null;
-                            CoreApplicationView newView = CoreApplication.CreateNewView();
-                            var newViewId = 0;
-                            await newView.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                            if (tuple.Item2 is TLPhoneCallDiscarded)
                             {
-                                newPlayer = new PhoneCallPage();
-                                Window.Current.Content = newPlayer;
-                                Window.Current.Activate();
-                                newViewId = ApplicationView.GetForCurrentView().Id;
+                                if (_phoneView != null)
+                                {
+                                    var newView = _phoneView;
+                                    _phoneViewExists = false;
+                                    _phoneView = null;
 
-                                newPlayer.SetCall(tuple);
-                            });
+                                    await newView.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                                    {
+                                        newView.SetCall(tuple);
+                                        newView.Dispose();
+                                        Window.Current.Close();
+                                    });
+                                }
 
-                            await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
+                                return;
+                            }
+
+                            if (_phoneViewExists == false)
                             {
-                                var overlay = ApplicationView.GetForCurrentView().IsViewModeSupported(ApplicationViewMode.CompactOverlay);
-                                if (overlay)
-                                {
-                                    var preferences = ViewModePreferences.CreateDefault(ApplicationViewMode.CompactOverlay);
-                                    preferences.CustomSize = new Size(340, 200);
+                                VoIPCallTask.Log("Creating VoIP UI", "Creating VoIP UI");
 
-                                    var viewShown = await ApplicationViewSwitcher.TryShowAsViewModeAsync(newViewId, ApplicationViewMode.CompactOverlay, preferences);
-                                }
-                                else
+                                _phoneViewExists = true;
+
+                                PhoneCallPage newPlayer = null;
+                                CoreApplicationView newView = CoreApplication.CreateNewView();
+                                var newViewId = 0;
+                                await newView.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                                 {
-                                    //await ApplicationViewSwitcher.SwitchAsync(newViewId);
-                                    await ApplicationViewSwitcher.TryShowAsStandaloneAsync(newViewId);
-                                }
-                            });
+                                    newPlayer = new PhoneCallPage();
+                                    Window.Current.Content = newPlayer;
+                                    Window.Current.Activate();
+                                    newViewId = ApplicationView.GetForCurrentView().Id;
+
+                                    newPlayer.SetCall(tuple);
+                                    _phoneView = newPlayer;
+                                });
+
+                                await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
+                                {
+                                    if (ApiInformation.IsMethodPresent("Windows.UI.ViewManagement.ApplicationView", "IsViewModeSupported") && ApplicationView.GetForCurrentView().IsViewModeSupported(ApplicationViewMode.CompactOverlay))
+                                    {
+                                        var preferences = ViewModePreferences.CreateDefault(ApplicationViewMode.CompactOverlay);
+                                        preferences.CustomSize = new Size(340, 200);
+
+                                        var viewShown = await ApplicationViewSwitcher.TryShowAsViewModeAsync(newViewId, ApplicationViewMode.CompactOverlay, preferences);
+                                    }
+                                    else
+                                    {
+                                        //await ApplicationViewSwitcher.SwitchAsync(newViewId);
+                                        await ApplicationViewSwitcher.TryShowAsStandaloneAsync(newViewId);
+                                    }
+                                });
+                            }
+                            else if (_phoneView != null)
+                            {
+                                VoIPCallTask.Log("VoIP UI already exists", "VoIP UI already exists");
+
+                                await _phoneView.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                                {
+                                    _phoneView.SetCall(tuple);
+                                });
+                            }
                         }
+                    }
+                    else if (caption.Equals("voip.setCallRating") && req is TLInputPhoneCall peer)
+                    {
+                        Execute.BeginOnUIThread(async () =>
+                        {
+                            var dialog = new PhoneCallRatingView();
+                            var confirm = await dialog.ShowAsync();
+                            if (confirm == ContentDialogResult.Primary)
+                            {
+                                await MTProtoService.Current.SetCallRatingAsync(peer, dialog.Rating, dialog.Rating >= 0 && dialog.Rating <= 3 ? dialog.Comment : null);
+                            }
+                        });
                     }
                     else
                     {
@@ -179,7 +268,11 @@ namespace Unigram.Common
             IsConnected = false;
             Debug.WriteLine("VoIPConnection.OnServiceClosed()");
 
-            await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () => await ConnectAsync());
+            try
+            {
+                await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () => await ConnectAsync());
+            }
+            catch { }
         }
     }
 }

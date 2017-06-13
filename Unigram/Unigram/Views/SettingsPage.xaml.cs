@@ -18,6 +18,10 @@ using Windows.Storage.Pickers;
 using Windows.UI.Xaml.Media.Imaging;
 using Windows.UI.Xaml.Media.Animation;
 using Telegram.Api.TL;
+using Unigram.ViewModels.Users;
+using Windows.UI.Xaml.Markup;
+using System.Linq;
+using Windows.UI.Xaml.Media;
 
 namespace Unigram.Views
 {
@@ -32,9 +36,6 @@ namespace Unigram.Views
 
             NavigationCacheMode = NavigationCacheMode.Required;
 
-
-            Loaded += OnLoaded;
-
 #if DEBUG
             // THIS CODE WILL RUN ONLY IF FIRST CONFIGURED SERVER IP IS TEST SERVER
             if (Telegram.Api.Constants.FirstServerIpAddress.Equals("149.154.167.40"))
@@ -44,7 +45,7 @@ namespace Unigram.Views
                 optionDelete.Command = ViewModel.DeleteAccountCommand;
                 optionDelete.Content = "!!! DELETE ACCOUNT !!!";
 
-                OptionsGroup4.Children.Clear();
+                //OptionsGroup4.Children.Clear();
                 OptionsGroup4.Children.Add(optionDelete);
             }
 
@@ -58,44 +59,8 @@ namespace Unigram.Views
 #endif
         }
 
-        private void OnLoaded(object sender, RoutedEventArgs e)
-        {
+        public MasterDetailView MasterDetail { get; set; }
 
-            OnStateChanged(null, null);
-        }
-
-        private void OnStateChanged(object p1, object p2)
-        {
-            if (MasterDetail.CurrentState == MasterDetailState.Narrow)
-            {
-                Separator.BorderThickness = new Thickness(0);
-            }
-            else
-            {
-                Separator.BorderThickness = new Thickness(0, 0, 1, 0);
-            }
-        }
-
-        protected override void OnNavigatedTo(NavigationEventArgs e)
-        {
-            //if (Frame.CanGoBack)
-            //{
-            //    SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility =
-            //        AppViewBackButtonVisibility.Visible;
-            //}
-            //else
-            //{
-            //    SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility =
-            //        AppViewBackButtonVisibility.Collapsed;
-            //}
-
-            if (MasterDetail.NavigationService == null)
-            {
-                MasterDetail.Initialize("Settings", Frame);
-            }
-
-            ViewModel.NavigationService = MasterDetail.NavigationService;
-        }
 
         private void General_Click(object sender, RoutedEventArgs e)
         {
@@ -107,14 +72,14 @@ namespace Unigram.Views
             MasterDetail.NavigationService.Navigate(typeof(SettingsUsernamePage));
         }
 
-        private async void EditName_Click(object sender, RoutedEventArgs e)
+        public async void EditName_Click(object sender, RoutedEventArgs e)
         {
             await MasterDetail.NavigationService.NavigateModalAsync(typeof(EditYourNameView));
         }
 
         private void Privacy_Click(object sender, RoutedEventArgs e)
         {
-            MasterDetail.NavigationService.Navigate(typeof(SettingsPrivacyPage));
+            MasterDetail.NavigationService.Navigate(typeof(SettingsPrivacyAndSecurityPage));
         }
 
         private void Stickers_Click(object sender, RoutedEventArgs e)
@@ -124,7 +89,7 @@ namespace Unigram.Views
 
         private void Data_Click(object sender, RoutedEventArgs e)
         {
-            MasterDetail.NavigationService.Navigate(typeof(SettingsDataPage));
+            MasterDetail.NavigationService.Navigate(typeof(SettingsDataAndStoragePage));
         }
 
         private void Notifications_Click(object sender, RoutedEventArgs e)
@@ -137,6 +102,11 @@ namespace Unigram.Views
             MasterDetail.NavigationService.Navigate(typeof(SettingsAccountsPage));
         }
 
+        private void Wallpaper_Click(object sender, RoutedEventArgs e)
+        {
+            MasterDetail.NavigationService.Navigate(typeof(SettingsWallPaperPage));
+        }
+
         private async void Photo_Click(object sender, RoutedEventArgs e)
         {
             ConnectedAnimationService.GetForCurrentView().PrepareToAnimate("FullScreenPicture", Photo);
@@ -145,14 +115,7 @@ namespace Unigram.Views
             if (user.HasPhoto && user.Photo is TLUserProfilePhoto photo)
             {
                 var viewModel = new UserPhotosViewModel(user, ViewModel.ProtoService);
-                await GalleryView.Current.ShowAsync(viewModel, (s, args) =>
-                {
-                    var animation = ConnectedAnimationService.GetForCurrentView().GetAnimation("FullScreenPicture");
-                    if (animation != null)
-                    {
-                        animation.TryStart(Photo);
-                    }
-                });
+                await GalleryView.Current.ShowAsync(viewModel, () => Photo);
             }
         }
 
@@ -178,6 +141,71 @@ namespace Unigram.Views
         private async void Questions_Click(object sender, RoutedEventArgs e)
         {
             await Launcher.LaunchUriAsync(new Uri("https://telegram.org/faq"));
+        }
+
+        private async void Theme_Click(object sender, RoutedEventArgs e)
+        {
+            var picker = new FileOpenPicker();
+            picker.FileTypeFilter.Add(".xaml");
+
+            var file = await picker.PickSingleFileAsync();
+            if (file != null)
+            {
+                var text = await FileIO.ReadTextAsync(file);
+
+                var dictionary = XamlReader.Load(text) as ResourceDictionary;
+                if (dictionary == null)
+                {
+                    return;
+                }
+
+                var accent = App.Current.Resources.MergedDictionaries.FirstOrDefault(x => x.Source.AbsoluteUri.EndsWith("Accent.xaml"));
+                if (accent == null)
+                {
+                    return;
+                }
+
+                foreach (var theme in dictionary.ThemeDictionaries)
+                {
+                    var item = theme.Value as ResourceDictionary;
+                    if (accent.ThemeDictionaries.TryGetValue(theme.Key, out object value))
+                    {
+                        var pair = value as ResourceDictionary;
+                        if (pair == null)
+                        {
+                            continue;
+                        }
+
+                        foreach (var key in item)
+                        {
+                            if (pair.ContainsKey(key.Key))
+                            {
+                                pair[key.Key] = key.Value;
+                            }
+
+                            //if (key.Value is SolidColorBrush brush && pair.TryGetValue(key.Key, out object original))
+                            //{
+                            //    var solidBrush = original as SolidColorBrush;
+                            //    if (solidBrush == null)
+                            //    {
+                            //        continue;
+                            //    }
+
+                            //    solidBrush.Color = brush.Color;
+                            //}
+                        }
+                    }
+                }
+
+                var frame = Window.Current.Content as Frame;
+                if (frame != null)
+                {
+                    var dark = (bool)App.Current.Resources["IsDarkTheme"];
+
+                    frame.RequestedTheme = dark ? ElementTheme.Light : ElementTheme.Dark;
+                    frame.RequestedTheme = ElementTheme.Default;
+                }
+            }
         }
     }
 

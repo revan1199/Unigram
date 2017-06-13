@@ -11,6 +11,7 @@ using Telegram.Api.TL;
 using Template10.Mvvm;
 using Unigram.Common;
 using Unigram.Controls.Views;
+using Unigram.Converters;
 using Unigram.Core.Common;
 
 namespace Unigram.ViewModels
@@ -72,6 +73,19 @@ namespace Unigram.ViewModels
             }
         }
 
+        protected GalleryItem _firstItem;
+        public GalleryItem FirstItem
+        {
+            get
+            {
+                return _firstItem;
+            }
+            set
+            {
+                Set(ref _firstItem, value);
+            }
+        }
+
         protected object _poster;
         public object Poster
         {
@@ -107,6 +121,14 @@ namespace Unigram.ViewModels
             }
         }
 
+        public virtual bool CanOpenInApp
+        {
+            get
+            {
+                return false;
+            }
+        }
+
         public RelayCommand StickersCommand => new RelayCommand(StickersExecute);
         private async void StickersExecute()
         {
@@ -135,6 +157,20 @@ namespace Unigram.ViewModels
         protected virtual void DeleteExecute()
         {
         }
+
+        public RelayCommand OpenInAppCommand => new RelayCommand(OpenInAppExecute);
+        protected virtual void OpenInAppExecute() // TODO Make async again when using the Launcher
+        {
+            // Get the source 
+            //var something = (TLPhoto)DefaultPhotoConverter.Convert(_selectedItem.Source);
+            //var sizeBase = something.Full;
+            //var photoSize = sizeBase as TLPhotoSize;
+            //var fileLocation = photoSize.Location as TLFileLocation;
+            //fileLocation.   // Find a way to get the IStorageFile of that darn picture
+            
+            // Open that file
+            //await Windows.System.Launcher.LaunchFileAsync(*INSERT FILE HERE*);
+        }
     }
 
     public class GalleryItem : BindableBase
@@ -144,7 +180,7 @@ namespace Unigram.ViewModels
 
         }
 
-        public GalleryItem(object source, string caption, ITLDialogWith from, int date, bool stickers)
+        public GalleryItem(ITLTransferable source, string caption, ITLDialogWith from, int date, bool stickers)
         {
             Source = source;
             Caption = caption;
@@ -153,7 +189,7 @@ namespace Unigram.ViewModels
             HasStickers = stickers;
         }
 
-        public virtual object Source { get; private set; }
+        public virtual ITLTransferable Source { get; private set; }
 
         public virtual string Caption { get; private set; }
 
@@ -163,6 +199,10 @@ namespace Unigram.ViewModels
 
         public virtual bool IsVideo { get; private set; }
 
+        public virtual bool IsLoop { get; private set; }
+
+        public virtual bool IsShareEnabled { get; private set; }
+
         public virtual bool HasStickers { get; private set; }
 
         public virtual TLInputStickeredMediaBase ToInputStickeredMedia()
@@ -171,6 +211,11 @@ namespace Unigram.ViewModels
         }
 
         public virtual Uri GetVideoSource()
+        {
+            throw new NotImplementedException();
+        }
+
+        public virtual void Share()
         {
             throw new NotImplementedException();
         }
