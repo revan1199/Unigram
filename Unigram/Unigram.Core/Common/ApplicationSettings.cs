@@ -8,6 +8,7 @@ using Telegram.Api.TL;
 using Unigram.Core.Services;
 using Telegram.Api.Services;
 using Telegram.Api.TL.Account;
+using Windows.UI.Xaml;
 
 namespace Unigram.Common
 {
@@ -78,6 +79,113 @@ namespace Unigram.Common
             }
         }
 
+        #region InApp
+
+        private bool? _inAppPreview;
+        public bool InAppPreview
+        {
+            get
+            {
+                if (_inAppPreview == null)
+                    _inAppPreview = GetValueOrDefault("InAppPreview", true);
+
+                return _inAppPreview ?? true;
+            }
+            set
+            {
+                _inAppPreview = value;
+                AddOrUpdateValue("InAppPreview", value);
+            }
+        }
+
+        private bool? _inAppVibrate;
+        public bool InAppVibrate
+        {
+            get
+            {
+                if (_inAppVibrate == null)
+                    _inAppVibrate = GetValueOrDefault("InAppVibrate", true);
+
+                return _inAppVibrate ?? true;
+            }
+            set
+            {
+                _inAppVibrate = value;
+                AddOrUpdateValue("InAppVibrate", value);
+            }
+        }
+
+        private bool? _inAppSounds;
+        public bool InAppSounds
+        {
+            get
+            {
+                if (_inAppSounds == null)
+                    _inAppSounds = GetValueOrDefault("InAppSounds", true);
+
+                return _inAppSounds ?? true;
+            }
+            set
+            {
+                _inAppSounds = value;
+                AddOrUpdateValue("InAppSounds", value);
+            }
+        }
+
+        #endregion
+
+        #region App version
+
+        public const int CurrentVersion = 055460;
+        public const string CurrentChangelog = "- Send self-destructing photos and videos to any one-on-one chats (use the clock icon in the media picker to set a timer).\r\n- Add a bio to your profile(in Settings) so that people in large group chats know who you are.\r\n- Download media from large public channels faster thanks to the new encrypted CDNs.";
+
+        private int? _appVersion;
+        public int Version
+        {
+            get
+            {
+                if (_appVersion == null)
+                    _appVersion = GetValueOrDefault("AppVersion", 0);
+
+                return _appVersion ?? 0;
+            }
+            set
+            {
+                _appVersion = value;
+                AddOrUpdateValue("AppVersion", value);
+            }
+        }
+
+        #endregion
+
+        private ElementTheme _currentTheme;
+        public ElementTheme CurrentTheme
+        {
+            get
+            {
+                return _currentTheme;
+            }
+        }
+
+        private ElementTheme? _requestedTheme;
+        public ElementTheme RequestedTheme
+        {
+            get
+            {
+                if (_requestedTheme == null)
+                {
+                    _requestedTheme = (ElementTheme)GetValueOrDefault("RequestedTheme", (int)ElementTheme.Default);
+                    _currentTheme = _requestedTheme ?? ElementTheme.Default;
+                }
+
+                return _requestedTheme ?? ElementTheme.Default;
+            }
+            set
+            {
+                _requestedTheme = value;
+                AddOrUpdateValue("RequestedTheme", (int)value);
+            }
+        }
 
         private bool? _isSendByEnterEnabled;
         public bool IsSendByEnterEnabled
@@ -161,6 +269,36 @@ namespace Unigram.Common
             {
                 _selectedColor = value;
                 AddOrUpdateValue("SelectedColor", value);
+            }
+        }
+
+        //private bool? _isPeerToPeer;
+        //public bool IsPeerToPeer
+        //{
+        //    get
+        //    {
+        //        if (_isPeerToPeer == null)
+        //            _isPeerToPeer = GetValueOrDefault("IsPeerToPeer", true);
+
+        //        return _isPeerToPeer ?? true;
+        //    }
+        //    set
+        //    {
+        //        _isPeerToPeer = value;
+        //        AddOrUpdateValue("IsPeerToPeer", value);
+        //    }
+        //}
+
+        // This setting should not be cached or changes will be not be reflected during the session
+        public bool IsPeerToPeer
+        {
+            get
+            {
+                return GetValueOrDefault("IsPeerToPeer", true);
+            }
+            set
+            {
+                AddOrUpdateValue("IsPeerToPeer", value);
             }
         }
 

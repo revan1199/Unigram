@@ -11,6 +11,7 @@ using Telegram.Api.Aggregator;
 using Telegram.Api.Helpers;
 using Telegram.Api.Services;
 using Telegram.Api.Services.Cache;
+using Telegram.Api.Services.Cache.Context;
 using Telegram.Api.TL;
 using Telegram.Api.TL.Messages;
 using Telegram.Api.TL.Messages.Methods;
@@ -93,12 +94,6 @@ namespace Unigram.Services
         void RemoveStickersSet(TLStickerSet stickerSet, int hide, bool showSettings);
 
         List<TLDocument> LoadStickersForEmoji(string emoji);
-
-        event NeedReloadArchivedStickersEventHandler NeedReloadArchivedStickers;
-        event StickersDidLoadedEventHandler StickersDidLoaded;
-        event FeaturedStickersDidLoadedEventHandler FeaturedStickersDidLoaded;
-        event RecentsDidLoadedEventHandler RecentsDidLoaded;
-        event ArchivedStickersCountDidLoadedEventHandler ArchivedStickersCountDidLoaded;
     }
 
     public class StickersService : IStickersService, IHandle, 
@@ -289,9 +284,8 @@ namespace Unigram.Services
                 try
                 {
                     Database database;
-                    DatabaseContext.Current.OpenDatabase(out database);
+                    CreateDatabase.Open(out database);
                     DatabaseContext.Current.Execute(database, "DELETE FROM web_recent_v3 WHERE Id = " + old.Id);
-                    Sqlite3.sqlite3_close(database);
                 }
                 catch (Exception e)
                 {
@@ -316,9 +310,8 @@ namespace Unigram.Services
             try
             {
                 Database database;
-                DatabaseContext.Current.OpenDatabase(out database);
+                CreateDatabase.Open(out database);
                 DatabaseContext.Current.Execute(database, "DELETE FROM web_recent_v3 WHERE Id = " + document.Id);
-                Sqlite3.sqlite3_close(database);
             }
             catch (Exception e)
             {
@@ -351,9 +344,8 @@ namespace Unigram.Services
                 try
                 {
                     Database database;
-                    DatabaseContext.Current.OpenDatabase(out database);
+                    CreateDatabase.Open(out database);
                     DatabaseContext.Current.Execute(database, "DELETE FROM web_recent_v3 WHERE Id = " + old.Id);
-                    Sqlite3.sqlite3_close(database);
                 }
                 catch (Exception e)
                 {
@@ -488,7 +480,7 @@ namespace Unigram.Services
                 {
                     Database database;
                     Statement statement;
-                    DatabaseContext.Current.OpenDatabase(out database);
+                    CreateDatabase.Open(out database);
 
                     List<TLDocument> arrayList = new List<TLDocument>();
 
@@ -512,7 +504,6 @@ namespace Unigram.Services
                     }
 
                     Sqlite3.sqlite3_finalize(statement);
-                    Sqlite3.sqlite3_close(database);
 
                     if (gif)
                     {
@@ -527,7 +518,7 @@ namespace Unigram.Services
                         recentStickersLoaded[type] = true;
                     }
                     //NotificationCenter.getInstance().postNotificationName(NotificationCenter.recentDocumentsDidLoaded, gif, type);
-                    RecentsDidLoaded?.Invoke(this, new RecentsDidLoadedEventArgs(gif, stickerType));
+                    _aggregator.Publish(new RecentsDidLoadedEventArgs(gif, stickerType));
 
                     if (arrayList.Count == 0)
                     {
@@ -615,7 +606,7 @@ namespace Unigram.Services
 
                     Database database;
                     Statement statement;
-                    DatabaseContext.Current.OpenDatabase(out database);
+                    CreateDatabase.Open(out database);
 
                     DatabaseContext.Current.Execute(database, "CREATE TABLE IF NOT EXISTS `web_recent_v3`(`Id` bigint primary key not null, `AccessHash` bigint, `Date` int, `MimeType` text, `Size` int, `Thumb` string, `DCId` int, `Version` int, `Attributes` string, `MetaType` int, `MetaDate` int)");
                     DatabaseContext.Current.Execute(database, "BEGIN IMMEDIATE TRANSACTION");
@@ -661,8 +652,6 @@ namespace Unigram.Services
                         }
                         DatabaseContext.Current.Execute(database, "COMMIT TRANSACTION");
                     }
-
-                    Sqlite3.sqlite3_close(database);
                 }
                 catch (Exception e)
                 {
@@ -697,7 +686,7 @@ namespace Unigram.Services
                     }
 
                     //NotificationCenter.getInstance().postNotificationName(NotificationCenter.recentDocumentsDidLoaded, gif, type);
-                    RecentsDidLoaded?.Invoke(this, new RecentsDidLoadedEventArgs(gif, stickerType));
+                    _aggregator.Publish(new RecentsDidLoadedEventArgs(gif, stickerType));
                 }
             }
         }
@@ -722,7 +711,7 @@ namespace Unigram.Services
 
             loadHash[type] = CalculateStickersHash(stickerSets[type]);
             //NotificationCenter.getInstance().postNotificationName(NotificationCenter.stickersDidLoaded, type);
-            StickersDidLoaded?.Invoke(this, new StickersDidLoadedEventArgs(stickerType));
+            _aggregator.Publish(new StickersDidLoadedEventArgs(stickerType));
             LoadStickers(stickerType, false, true);
         }
 
@@ -781,7 +770,7 @@ namespace Unigram.Services
             }
             loadHash[type] = CalculateStickersHash(stickerSets[type]);
             //NotificationCenter.getInstance().postNotificationName(NotificationCenter.stickersDidLoaded, type);
-            StickersDidLoaded?.Invoke(this, new StickersDidLoadedEventArgs(stickerType));
+            _aggregator.Publish(new StickersDidLoadedEventArgs(stickerType));
             LoadStickers(stickerType, false, true);
         }
 
@@ -799,7 +788,7 @@ namespace Unigram.Services
 
                 archivedStickersCount[type] = count;
                 //NotificationCenter.getInstance().postNotificationName(NotificationCenter.archivedStickersCountDidLoaded, new Object[] { Integer.valueOf(type) });
-                ArchivedStickersCountDidLoaded?.Invoke(this, new ArchivedStickersCountDidLoadedEventArgs(stickerType));
+                _aggregator.Publish(new ArchivedStickersCountDidLoadedEventArgs(stickerType));
                 LoadArchivedStickersCount(stickerType, false);
             }
             else
@@ -812,7 +801,7 @@ namespace Unigram.Services
                     archivedStickersCount[type] = result.Count;
                     ApplicationSettings.Current.AddOrUpdateValue("archivedStickersCount" + type, result.Count);
                     //NotificationCenter.getInstance().postNotificationName(NotificationCenter.archivedStickersCountDidLoaded, new Object[] { Integer.valueOf(StickersQuery.19.this.val$type) });
-                    ArchivedStickersCountDidLoaded?.Invoke(this, new ArchivedStickersCountDidLoadedEventArgs(stickerType));
+                    _aggregator.Publish(new ArchivedStickersCountDidLoadedEventArgs(stickerType));
                 });
             }
         }
@@ -833,7 +822,7 @@ namespace Unigram.Services
 
                 Database database;
                 Statement statement;
-                DatabaseContext.Current.OpenDatabase(out database);
+                CreateDatabase.Open(out database);
                 try
                 {
                     Sqlite3.sqlite3_prepare_v2(database, "SELECT data, unread, date, hash FROM stickers_featured WHERE 1", out statement);
@@ -864,7 +853,7 @@ namespace Unigram.Services
                 }
                 finally
                 {
-                    Sqlite3.sqlite3_close(database);
+                    //Sqlite3.sqlite3_close(database);
                 }
 
                 ProcessLoadedFeaturedStickers(newStickerArray, unread, true, date, hash);
@@ -991,7 +980,7 @@ namespace Unigram.Services
                     loadFeaturedHash = hash;
                     loadFeaturedDate = date;
                     //NotificationCenter.getInstance().postNotificationName(NotificationCenter.featuredStickersDidLoaded);
-                    FeaturedStickersDidLoaded?.Invoke(this, new FeaturedStickersDidLoadedEventArgs());
+                    _aggregator.Publish(new FeaturedStickersDidLoadedEventArgs());
                     //    }
                     //});
                 }
@@ -1024,7 +1013,7 @@ namespace Unigram.Services
             {
                 Database database;
                 Statement statement;
-                DatabaseContext.Current.OpenDatabase(out database);
+                CreateDatabase.Open(out database);
                 DatabaseContext.Current.Execute(database, "CREATE TABLE IF NOT EXISTS stickers_featured(id INTEGER PRIMARY KEY, data BLOB, unread BLOB, date INTEGER, hash TEXT);");
 
                 if (stickersFinal != null)
@@ -1063,8 +1052,6 @@ namespace Unigram.Services
                     Sqlite3.sqlite3_step(statement);
                     Sqlite3.sqlite3_finalize(statement);
                 }
-
-                Sqlite3.sqlite3_close(database);
             }
             catch (Exception e)
             {
@@ -1103,7 +1090,7 @@ namespace Unigram.Services
             unreadStickerSets.Clear();
             loadFeaturedHash = CalculateFeaturedStickersHash(featuredStickerSets);
             //NotificationCenter.getInstance().postNotificationName(NotificationCenter.featuredStickersDidLoaded);
-            FeaturedStickersDidLoaded?.Invoke(this, new FeaturedStickersDidLoadedEventArgs());
+            _aggregator.Publish(new FeaturedStickersDidLoadedEventArgs());
             PutFeaturedStickersToCache(featuredStickerSets, unreadStickerSets, loadFeaturedDate, loadFeaturedHash);
             if (query)
             {
@@ -1130,7 +1117,7 @@ namespace Unigram.Services
             readingStickerSets.Remove(id);
             loadFeaturedHash = CalculateFeaturedStickersHash(featuredStickerSets);
             //NotificationCenter.getInstance().postNotificationName(NotificationCenter.featuredStickersDidLoaded);
-            FeaturedStickersDidLoaded?.Invoke(this, new FeaturedStickersDidLoadedEventArgs());
+            _aggregator.Publish(new FeaturedStickersDidLoadedEventArgs());
             PutFeaturedStickersToCache(featuredStickerSets, unreadStickerSets, loadFeaturedDate, loadFeaturedHash);
             //    }
             //}, 1000);
@@ -1151,7 +1138,7 @@ namespace Unigram.Services
                 int hash = 0;
                 Database database;
                 Statement statement;
-                DatabaseContext.Current.OpenDatabase(out database);
+                CreateDatabase.Open(out database);
                 try
                 {
                     Sqlite3.sqlite3_prepare_v2(database, "SELECT data, date, hash FROM stickers_v2 WHERE id = " + (type + 1), out statement);
@@ -1175,8 +1162,9 @@ namespace Unigram.Services
                 }
                 finally
                 {
-                    Sqlite3.sqlite3_close(database);
+                    //Sqlite3.sqlite3_close(database);
                 }
+
                 ProcessLoadedStickers(stickerType, newStickerArray, true, date, hash);
             }
             else
@@ -1268,7 +1256,7 @@ namespace Unigram.Services
             {
                 Database database;
                 Statement statement;
-                DatabaseContext.Current.OpenDatabase(out database);
+                CreateDatabase.Open(out database);
                 DatabaseContext.Current.Execute(database, "CREATE TABLE IF NOT EXISTS stickers_v2(id INTEGER PRIMARY KEY, data BLOB, date INTEGER, hash TEXT);");
 
                 if (stickersFinal != null)
@@ -1300,8 +1288,6 @@ namespace Unigram.Services
                     Sqlite3.sqlite3_step(statement);
                     Sqlite3.sqlite3_finalize(statement);
                 }
-
-                Sqlite3.sqlite3_close(database);
             }
             catch (Exception e)
             {
@@ -1476,7 +1462,7 @@ namespace Unigram.Services
                         stickersByEmoji = stickersByEmojiNew;
                     }
                     //NotificationCenter.getInstance().postNotificationName(NotificationCenter.stickersDidLoaded, type);
-                    StickersDidLoaded?.Invoke(this, new StickersDidLoadedEventArgs(stickerType));
+                    _aggregator.Publish(new StickersDidLoadedEventArgs(stickerType));
                     //    }
                     //});
                 }
@@ -1532,7 +1518,7 @@ namespace Unigram.Services
                 loadHash[type] = CalculateStickersHash(stickerSets[type]);
                 PutStickersToCache(stickerType, stickerSets[type], loadDate[type], loadHash[type]);
                 //NotificationCenter.getInstance().postNotificationName(NotificationCenter.stickersDidLoaded, type);
-                StickersDidLoaded?.Invoke(this, new StickersDidLoadedEventArgs(stickerType));
+                _aggregator.Publish(new StickersDidLoadedEventArgs(stickerType));
                 TLMessagesInstallStickerSet req = new TLMessagesInstallStickerSet();
                 req.StickerSet = stickerSetID;
                 req.Archived = hide == 1;
@@ -1541,7 +1527,7 @@ namespace Unigram.Services
                     if (result is TLMessagesStickerSetInstallResultArchive)
                     {
                         //NotificationCenter.getInstance().postNotificationName(NotificationCenter.needReloadArchivedStickers, type);
-                        NeedReloadArchivedStickers?.Invoke(this, new NeedReloadArchivedStickersEventArgs(stickerType));
+                        _aggregator.Publish(new NeedReloadArchivedStickersEventArgs(stickerType));
                         //if (hide != 1 && baseFragment != null && baseFragment.getParentActivity() != null)
                         //{
                         //    StickersArchiveAlert alert = new StickersArchiveAlert(baseFragment.getParentActivity(), showSettings ? baseFragment : null, ((TLRPC.TL_messages_stickerSetInstallResultArchive)response).sets);
@@ -1589,14 +1575,6 @@ namespace Unigram.Services
                 });
             }
         }
-
-        public event NeedReloadArchivedStickersEventHandler NeedReloadArchivedStickers;
-        public event StickersDidLoadedEventHandler StickersDidLoaded;
-        public event FeaturedStickersDidLoadedEventHandler FeaturedStickersDidLoaded;
-        public event RecentsDidLoadedEventHandler RecentsDidLoaded;
-        public event ArchivedStickersCountDidLoadedEventHandler ArchivedStickersCountDidLoaded;
-
-
 
 
 

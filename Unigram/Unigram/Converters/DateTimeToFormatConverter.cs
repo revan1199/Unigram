@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Windows.Globalization.DateTimeFormatting;
+using Windows.System.UserProfile;
 using Windows.UI.Xaml.Data;
 
 namespace Unigram.Converters
@@ -26,7 +27,7 @@ namespace Unigram.Converters
             }
             else
             {
-                var formatted = new DateTimeFormatter(format, Windows.System.UserProfile.GlobalizationPreferences.Languages).Format((DateTime)value).Trim('\u200E', '\u200F');
+                var formatted = new DateTimeFormatter(format, GlobalizationPreferences.Languages).Format((DateTime)value).Trim('\u200E', '\u200F');
                 if (format.Contains("full"))
                 {
                     return formatted.Substring(0, 1).ToUpper() + formatted.Substring(1);
@@ -38,10 +39,22 @@ namespace Unigram.Converters
             return value;
         }
 
-        private static string ConvertMonthGrouping(DateTime date)
+        public static string ConvertMonthGrouping(DateTime date)
         {
-            var formatted = new DateTimeFormatter("month.full").Format(date).Trim('\u200E', '\u200F');
+            var formatted = new DateTimeFormatter("month.full", GlobalizationPreferences.Languages).Format(date).Trim('\u200E', '\u200F');
             formatted = formatted.Substring(0, 1).ToUpper() + formatted.Substring(1);
+
+            if (date.Year != DateTime.Now.Year)
+            {
+                formatted += $" {date.Year}";
+            }
+
+            return formatted;
+        }
+
+        public static string ConvertDayGrouping(DateTime date)
+        {
+            var formatted = new DateTimeFormatter("day month.full", GlobalizationPreferences.Languages).Format(date);
 
             if (date.Year != DateTime.Now.Year)
             {

@@ -29,7 +29,8 @@ namespace Telegram.Api.Services
         {
             var obj = new TLUploadGetFile { Location = location, Offset = offset, Limit = limit };
 
-            SendInformativeMessage("upload.getFile", obj, callback, faultCallback);
+            const string caption = "upload.getFile";
+            SendInformativeMessage(caption, obj, callback, faultCallback);
         }
 
         public void GetCdnFileAsync(byte[] fileToken, int offset, int limit, Action<TLUploadCdnFileBase> callback, Action<TLRPCError> faultCallback = null)
@@ -45,6 +46,14 @@ namespace Telegram.Api.Services
             var obj = new TLUploadReuploadCdnFile { FileToken = fileToken, RequestToken = requestToken };
 
             const string caption = "upload.reuploadCdnFile";
+            SendInformativeMessage(caption, obj, callback, faultCallback);
+        }
+
+        public void GetCdnFileHashesAsync(byte[] fileToken, int offset, Action<TLVector<TLCdnFileHash>> callback, Action<TLRPCError> faultCallback = null)
+        {
+            var obj = new TLUploadGetCdnFileHashes { FileToken = fileToken, Offset = offset };
+
+            const string caption = "upload.getCdnFileHashes";
             SendInformativeMessage(caption, obj, callback, faultCallback);
         }
     }

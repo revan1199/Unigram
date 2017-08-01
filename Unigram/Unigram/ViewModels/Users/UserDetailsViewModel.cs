@@ -96,6 +96,10 @@ namespace Unigram.ViewModels.Users
                         full = response.Result;
                     }
                 }
+                else
+                {
+                    ProtoService.GetFullUserAsync(user.ToInputUser(), null);
+                }
 
                 if (full != null)
                 {
@@ -332,7 +336,7 @@ namespace Unigram.ViewModels.Users
                 dialog.PrimaryButtonText = "Resources.OK";
                 dialog.SecondaryButtonText = "Resources.Cancel";
 
-                var dialogResult = await dialog.ShowAsync();
+                var dialogResult = await dialog.ShowQueuedAsync();
                 if (dialogResult == ContentDialogResult.Primary)
                 {
                     var reason = opt1.IsChecked == true
@@ -353,7 +357,7 @@ namespace Unigram.ViewModels.Users
                         input.PrimaryButtonText = "Resources.OK";
                         input.SecondaryButtonText = "Resources.Cancel";
 
-                        var inputResult = await input.ShowAsync();
+                        var inputResult = await input.ShowQueuedAsync();
                         if (inputResult == ContentDialogResult.Primary)
                         {
                             reason = new TLInputReportReasonOther { Text = input.Text };
@@ -556,6 +560,11 @@ namespace Unigram.ViewModels.Users
         public RelayCommand ToggleMuteCommand => new RelayCommand(ToggleMuteExecute);
         private async void ToggleMuteExecute()
         {
+            if (_item == null || _full == null)
+            {
+                return;
+            }
+
             var notifySettings = _full.NotifySettings as TLPeerNotifySettings;
             if (notifySettings != null)
             {
@@ -571,6 +580,11 @@ namespace Unigram.ViewModels.Users
                 var response = await ProtoService.UpdateNotifySettingsAsync(new TLInputNotifyPeer { Peer = _item.ToInputPeer() }, settings);
                 if (response.IsSucceeded)
                 {
+                    if (_item == null || _full == null)
+                    {
+                        return;
+                    }
+
                     notifySettings.MuteUntil = muteUntil;
                     RaisePropertyChanged(() => AreNotificationsEnabled);
                     Full.RaisePropertyChanged(() => Full.NotifySettings);
@@ -593,24 +607,26 @@ namespace Unigram.ViewModels.Users
         public RelayCommand CallCommand => new RelayCommand(CallExecute);
         private async void CallExecute()
         {
-            var user = _item;
-            if (user == null)
+            if (_item == null || _full == null)
             {
                 return;
             }
 
-            try
+            if (_full.IsPhoneCallsAvailable && !_item.IsSelf && ApiInformation.IsApiContractPresent("Windows.ApplicationModel.Calls.CallsVoipContract", 1))
             {
-                var coordinator = VoipCallCoordinator.GetDefault();
-                var result = await coordinator.ReserveCallResourcesAsync("Unigram.Tasks.VoIPCallTask");
-                if (result == VoipPhoneCallResourceReservationStatus.Success)
+                try
                 {
-                    await VoIPConnection.Current.SendRequestAsync("voip.startCall", user);
+                    var coordinator = VoipCallCoordinator.GetDefault();
+                    var result = await coordinator.ReserveCallResourcesAsync("Unigram.Tasks.VoIPCallTask");
+                    if (result == VoipPhoneCallResourceReservationStatus.Success)
+                    {
+                        await VoIPConnection.Current.SendRequestAsync("voip.startCall", _item);
+                    }
                 }
-            }
-            catch
-            {
-                await TLMessageDialog.ShowAsync("Something went wrong. Please, try to close and relaunch the app.", "Unigram", "OK");
+                catch
+                {
+                    await TLMessageDialog.ShowAsync("Something went wrong. Please, try to close and relaunch the app.", "Unigram", "OK");
+                }
             }
         }
 

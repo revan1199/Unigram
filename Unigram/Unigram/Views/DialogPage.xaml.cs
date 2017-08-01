@@ -53,6 +53,8 @@ using Unigram.Themes;
 using Windows.UI.Xaml.Media.Animation;
 using Template10.Common;
 using Template10.Services.NavigationService;
+using Unigram.Core.Helpers;
+using Unigram.Native;
 
 namespace Unigram.Views
 {
@@ -61,6 +63,8 @@ namespace Unigram.Views
         public DialogViewModel ViewModel => DataContext as DialogViewModel;
 
         public BindConvert Convert => BindConvert.Current;
+
+        private double _lastKnownKeyboardHeight = 260;
 
         private DispatcherTimer _elapsedTimer;
         private Visual _messageVisual;
@@ -78,6 +82,7 @@ namespace Unigram.Views
             //NavigationCacheMode = NavigationCacheMode.Required;
 
             ViewModel.TextField = TextField;
+            ViewModel.ListField = lvDialogs;
 
             CheckMessageBoxEmpty();
 
@@ -86,6 +91,7 @@ namespace Unigram.Views
             TextField.LostFocus += TextField_LostFocus;
 
             lvDialogs.RegisterPropertyChangedCallback(ListViewBase.SelectionModeProperty, List_SelectionModeChanged);
+            StickersPanel.RegisterPropertyChangedCallback(FrameworkElement.VisibilityProperty, StickersPanel_VisibilityChanged);
 
             _messageVisual = ElementCompositionPreview.GetElementVisual(TextField);
             _ellipseVisual = ElementCompositionPreview.GetElementVisual(Ellipse);
@@ -144,9 +150,14 @@ namespace Unigram.Views
 
         private void TextField_LostFocus(object sender, RoutedEventArgs e)
         {
-            if (StickersPanel.Visibility == Visibility.Visible)
+            if (StickersPanel.Visibility == Visibility.Visible && TextField.FocusState == FocusState.Unfocused)
             {
-                StickersPanel.Visibility = Visibility.Collapsed;
+                Collapse_Click(StickersPanel, null);
+
+                if (UIViewSettings.GetForCurrentView().UserInteractionMode == UserInteractionMode.Mouse)
+                {
+                    TextField.Focus(FocusState.Keyboard);
+                }
             }
         }
 
@@ -249,6 +260,8 @@ namespace Unigram.Views
             InputPane.GetForCurrentView().Showing += InputPane_Showing;
             InputPane.GetForCurrentView().Hiding += InputPane_Hiding;
 
+            App.AcceleratorKeyActivated += Dispatcher_AcceleratorKeyActivated;
+
             _panel = (ItemsStackPanel)lvDialogs.ItemsPanelRoot;
             lvDialogs.ScrollingHost.ViewChanged += OnViewChanged;
 
@@ -262,6 +275,8 @@ namespace Unigram.Views
         {
             InputPane.GetForCurrentView().Showing -= InputPane_Showing;
             InputPane.GetForCurrentView().Hiding -= InputPane_Hiding;
+
+            App.AcceleratorKeyActivated -= Dispatcher_AcceleratorKeyActivated;
         }
 
         private void InputPane_Showing(InputPane sender, InputPaneVisibilityEventArgs args)
@@ -271,6 +286,8 @@ namespace Unigram.Views
             StickersPanel.Height = args.OccludedRect.Height;
             ReplyMarkupPanel.MaxHeight = args.OccludedRect.Height;
             //ReplyMarkupViewer.MaxHeight = args.OccludedRect.Height;
+
+            _lastKnownKeyboardHeight = Math.Max(260, args.OccludedRect.Height);
         }
 
         private void InputPane_Hiding(InputPane sender, InputPaneVisibilityEventArgs args)
@@ -279,11 +296,39 @@ namespace Unigram.Views
             KeyboardPlaceholder.Height = new GridLength(1, GridUnitType.Auto);
         }
 
+        private void Dispatcher_AcceleratorKeyActivated(CoreDispatcher sender, AcceleratorKeyEventArgs args)
+        {
+            if (args.VirtualKey == VirtualKey.Escape && !args.KeyStatus.IsKeyReleased)
+            {
+                if (StickersPanel.Visibility == Visibility.Visible)
+                {
+                    Collapse_Click(null, null);
+                    args.Handled = true;
+                }
+
+                if (ViewModel.SelectionMode != ListViewSelectionMode.None)
+                {
+                    ViewModel.SelectionMode = ListViewSelectionMode.None;
+                    args.Handled = true;
+                }
+
+                if (args.Handled)
+                {
+                    Focus(FocusState.Programmatic);
+
+                    if (UIViewSettings.GetForCurrentView().UserInteractionMode == UserInteractionMode.Mouse)
+                    {
+                        TextField.Focus(FocusState.Keyboard);
+                    }
+                }
+            }
+        }
+
         public void OnBackRequested(HandledEventArgs args)
         {
             if (StickersPanel.Visibility == Visibility.Visible)
             {
-                StickersPanel.Visibility = Visibility.Collapsed;
+                Collapse_Click(null, null);
                 args.Handled = true;
             }
 
@@ -291,6 +336,16 @@ namespace Unigram.Views
             {
                 ViewModel.SelectionMode = ListViewSelectionMode.None;
                 args.Handled = true;
+            }
+
+            if (args.Handled)
+            {
+                Focus(FocusState.Programmatic);
+
+                if (UIViewSettings.GetForCurrentView().UserInteractionMode == UserInteractionMode.Mouse)
+                {
+                    TextField.Focus(FocusState.Keyboard);
+                }
             }
         }
 
@@ -352,22 +407,38 @@ namespace Unigram.Views
             }
         }
 
-        private void Attach_Click(object sender, RoutedEventArgs e)
+        private async void Attach_Click(object sender, RoutedEventArgs e)
         {
-            var flyout = FlyoutBase.GetAttachedFlyout(ButtonAttach) as MenuFlyout;
-            if (flyout != null)
+            var channel = ViewModel.With as TLChannel;
+            if (channel != null && channel.HasBannedRights && channel.BannedRights.IsSendMedia)
             {
-                var bounds = ApplicationView.GetForCurrentView().VisibleBounds;
-                if (AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Mobile" && (bounds.Width < 500 || bounds.Height < 500))
-                {
-                    flyout.LightDismissOverlayMode = LightDismissOverlayMode.On;
-                }
-                else
-                {
-                    flyout.LightDismissOverlayMode = LightDismissOverlayMode.Auto;
-                }
+                await TLMessageDialog.ShowAsync("The admins of this group restricted you from posting media content here.", "Warning", "OK");
+                return;
+            }
 
-                flyout.ShowAt(ButtonAttach, new Point(8, -8));
+            var pane = InputPane.GetForCurrentView();
+            if (pane.OccludedRect != Rect.Empty)
+            {
+                pane.TryHide();
+
+                // TODO: Can't find any better solution
+                await Task.Delay(200);
+            }
+
+            if (FlyoutBase.GetAttachedFlyout(ButtonAttach) is MenuFlyout flyout)
+            {
+                //var bounds = ApplicationView.GetForCurrentView().VisibleBounds;
+                //if (AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Mobile" && (bounds.Width < 500 || bounds.Height < 500))
+                //{
+                //    flyout.LightDismissOverlayMode = LightDismissOverlayMode.On;
+                //}
+                //else
+                //{
+                //    flyout.LightDismissOverlayMode = LightDismissOverlayMode.Auto;
+                //}
+
+                //flyout.ShowAt(ButtonAttach, new Point(4, -4));
+                flyout.ShowAt(FlyoutArea);
             }
         }
 
@@ -524,21 +595,33 @@ namespace Unigram.Views
             ViewModel.KeyboardButtonExecute(e.Button, null);
         }
 
-        private void Stickers_Click(object sender, RoutedEventArgs e)
+        private async void Stickers_Click(object sender, RoutedEventArgs e)
         {
+            var channel = ViewModel.With as TLChannel;
+            if (channel != null && channel.HasBannedRights && (channel.BannedRights.IsSendStickers || channel.BannedRights.IsSendGifs))
+            {
+                await TLMessageDialog.ShowAsync("The admins of this group restricted you from posting stickers here.", "Warning", "OK");
+                return;
+            }
+
             if (StickersPanel.Visibility == Visibility.Collapsed)
             {
-                StickersPanel.Visibility = Visibility.Visible;
-                TextField.PreventKeyboardDisplayOnProgrammaticFocus = true;
+                Focus(FocusState.Programmatic);
                 TextField.Focus(FocusState.Programmatic);
+
                 InputPane.GetForCurrentView().TryHide();
+
+                StickersPanel.Visibility = Visibility.Visible;
+                StickersPanel.Refresh();
 
                 ViewModel.OpenStickersCommand.Execute(null);
             }
             else
             {
-                StickersPanel.Visibility = Visibility.Collapsed;
-                InputPane.GetForCurrentView().TryShow();
+                Focus(FocusState.Programmatic);
+                TextField.Focus(FocusState.Keyboard);
+
+                Collapse_Click(StickersPanel, null);
             }
         }
 
@@ -592,12 +675,12 @@ namespace Unigram.Views
                     //    }
                     //}
 
-                    var channel = ViewModel.With as TLChannel;
+                    var channel = messageCommon.Parent as TLChannel;
                     if (channel != null)
                     {
                         if (channel.IsBroadcast)
                         {
-                            element.Visibility = channel.IsCreator || channel.IsEditor ? Visibility.Visible : Visibility.Collapsed;
+                            element.Visibility = channel.IsCreator || channel.HasAdminRights ? Visibility.Visible : Visibility.Collapsed;
                             return;
                         }
                     }
@@ -615,8 +698,8 @@ namespace Unigram.Views
                 var messageCommon = element.DataContext as TLMessageCommonBase;
                 if (messageCommon != null)
                 {
-                    var channel = ViewModel.With as TLChannel;
-                    if (channel != null && (channel.IsEditor || channel.IsCreator) && !channel.IsBroadcast)
+                    var channel = messageCommon.Parent as TLChannel;
+                    if (channel != null && (channel.IsCreator || (channel.HasAdminRights && channel.AdminRights.IsPinMessages)) && !channel.IsBroadcast)
                     {
                         if (messageCommon.ToId is TLPeerChannel)
                         {
@@ -639,13 +722,13 @@ namespace Unigram.Views
                 var message = element.DataContext as TLMessage;
                 if (message != null)
                 {
-                    var channel = ViewModel.With as TLChannel;
+                    var channel = message.Parent as TLChannel;
                     if (message.IsOut && message.ToId is TLPeerUser userPeer && userPeer.Id == SettingsHelper.UserId)
                     {
                         element.Visibility = Visibility.Visible;
                         return;
                     }
-                    else if (message.HasFwdFrom == false && message.ViaBotId == null && (message.IsOut || (channel != null && channel.IsBroadcast && (channel.IsCreator || channel.IsEditor))) && (message.Media is ITLMessageMediaCaption || message.Media is TLMessageMediaWebPage || message.Media is TLMessageMediaEmpty || message.Media == null))
+                    else if (message.HasFwdFrom == false && message.ViaBotId == null && (message.IsOut || (channel != null && channel.IsBroadcast && (channel.IsCreator || (channel.HasAdminRights && channel.AdminRights.IsEditMessages)))) && (message.Media is ITLMessageMediaCaption || message.Media is TLMessageMediaWebPage || message.Media is TLMessageMediaEmpty || message.Media == null))
                     {
                         var date = TLUtils.DateToUniversalTimeTLInt(ViewModel.ProtoService.ClientTicksDelta, DateTime.Now);
                         var config = ViewModel.CacheService.GetConfig();
@@ -674,7 +757,7 @@ namespace Unigram.Views
                 var messageCommon = element.DataContext as TLMessageCommonBase;
                 if (messageCommon != null)
                 {
-                    var channel = ViewModel.With as TLChannel;
+                    var channel = messageCommon.Parent as TLChannel;
                     if (channel != null)
                     {
                         if (messageCommon.Id == 1 && messageCommon.ToId is TLPeerChannel)
@@ -682,7 +765,7 @@ namespace Unigram.Views
                             element.Visibility = Visibility.Collapsed;
                         }
 
-                        if (!messageCommon.IsOut && !channel.IsCreator && !channel.IsEditor)
+                        if (!messageCommon.IsOut && !channel.IsCreator && !channel.HasAdminRights || (channel.AdminRights != null && !channel.AdminRights.IsDeleteMessages))
                         {
                             element.Visibility = Visibility.Collapsed;
                         }
@@ -696,10 +779,16 @@ namespace Unigram.Views
             var element = sender as MenuFlyoutItem;
             if (element != null)
             {
-                var messageCommon = element.DataContext as TLMessageCommonBase;
-                if (messageCommon != null)
+                var message = element.DataContext as TLMessage;
+                if (message != null && message.Media is TLMessageMediaPhoto photoMedia)
                 {
-
+                    element.Visibility = photoMedia.HasTTLSeconds ? Visibility.Collapsed : Visibility.Visible;
+                    return;
+                }
+                else if (message != null && message.Media is TLMessageMediaDocument documentMedia)
+                {
+                    element.Visibility = documentMedia.HasTTLSeconds ? Visibility.Collapsed : Visibility.Visible;
+                    return;
                 }
 
                 element.Visibility = Visibility.Visible;
@@ -740,14 +829,12 @@ namespace Unigram.Views
                 var messageCommon = element.DataContext as TLMessageCommonBase;
                 if (messageCommon != null)
                 {
-                    var channel = ViewModel.With as TLChannel;
-                    if (channel != null)
+                    var channel = messageCommon.Parent as TLChannel;
+                    if (channel != null && channel.HasUsername)
                     {
-                        if (channel.IsBroadcast && channel.HasUsername)
-                        {
-                            element.Visibility = Visibility.Visible;
-                            return;
-                        }
+                        element.Text = channel.IsBroadcast ? "Copy post link" : "Copy message link";
+                        element.Visibility = Visibility.Visible;
+                        return;
                     }
                 }
 
@@ -780,13 +867,15 @@ namespace Unigram.Views
             if (element != null)
             {
                 var message = element.DataContext as TLMessage;
-                if (message != null)
+                if (message != null && message.Media is TLMessageMediaPhoto photoMedia)
                 {
-                    if (message.Media is TLMessageMediaDocument || message.Media is TLMessageMediaPhoto)
-                    {
-                        Visibility = Visibility.Visible;
-                        return;
-                    }
+                    element.Visibility = photoMedia.HasTTLSeconds ? Visibility.Collapsed : Visibility.Visible;
+                    return;
+                }
+                else if (message != null && message.Media is TLMessageMediaDocument documentMedia)
+                {
+                    element.Visibility = documentMedia.HasTTLSeconds ? Visibility.Collapsed : Visibility.Visible;
+                    return;
                 }
 
                 element.Visibility = Visibility.Collapsed;
@@ -838,8 +927,15 @@ namespace Unigram.Views
             Media.Download(sender, e);
         }
 
-        private void Stickers_ItemClick(object sender, ItemClickEventArgs e)
+        private async void Stickers_ItemClick(object sender, ItemClickEventArgs e)
         {
+            var channel = ViewModel.With as TLChannel;
+            if (channel != null && channel.HasBannedRights && (channel.BannedRights.IsSendStickers || channel.BannedRights.IsSendGifs))
+            {
+                await TLMessageDialog.ShowAsync("The admins of this group restricted you from posting stickers here.", "Warning", "OK");
+                return;
+            }
+
             ViewModel.SendStickerCommand.Execute(e.ClickedItem);
             ViewModel.StickerPack = null;
             TextField.SetText(null, null);
@@ -1057,30 +1153,12 @@ namespace Unigram.Views
             visual.StopAnimation("Offset.Y");
         }
 
-        private void BotCommands_ItemClick(object sender, ItemClickEventArgs e)
-        {
-            var item = e.ClickedItem as Tuple<TLUser, TLBotCommand>;
-            if (item != null)
-            {
-                var command = $"/{item.Item2.Command}";
-                if (ViewModel.With is TLChannel || ViewModel.With is TLChat && item.Item1.HasUsername)
-                {
-                    command += $"@{item.Item1.Username}";
-                }
-
-                TextField.SetText(null, null);
-                ViewModel.SendCommand.Execute(command);
-                ViewModel.BotCommands = null;
-            }
-        }
-
-        private void UsernameHints_ItemClick(object sender, ItemClickEventArgs e)
+        private void Autocomplete_ItemClick(object sender, ItemClickEventArgs e)
         {
             TextField.Document.GetText(TextGetOptions.None, out string hidden);
             TextField.Document.GetText(TextGetOptions.NoHidden, out string text);
 
-            var user = e.ClickedItem as TLUser;
-            if (user != null && BubbleTextBox.SearchByUsernames(text.Substring(0, Math.Min(TextField.Document.Selection.EndPosition, text.Length)), out string query))
+            if (e.ClickedItem is TLUser user && BubbleTextBox.SearchByUsername(text.Substring(0, Math.Min(TextField.Document.Selection.EndPosition, text.Length)), out string username))
             {
                 var insert = string.Empty;
                 var adjust = 0;
@@ -1096,8 +1174,8 @@ namespace Unigram.Views
                 }
 
                 var format = TextField.Document.GetDefaultCharacterFormat();
-                var start = TextField.Document.Selection.StartPosition - query.Length - adjust + insert.Length;
-                var range = TextField.Document.GetRange(TextField.Document.Selection.StartPosition - query.Length - adjust, TextField.Document.Selection.StartPosition);
+                var start = TextField.Document.Selection.StartPosition - username.Length - adjust + insert.Length;
+                var range = TextField.Document.GetRange(TextField.Document.Selection.StartPosition - username.Length - adjust, TextField.Document.Selection.StartPosition);
                 range.SetText(TextSetOptions.None, insert);
 
                 if (user.HasUsername == false)
@@ -1112,15 +1190,40 @@ namespace Unigram.Views
                 TextField.Document.Selection.StartPosition = start + 1;
                 TextField.Document.SetDefaultCharacterFormat(format);
 
-                ViewModel.UsernameHints = null;
+                ViewModel.Autocomplete = null;
+            }
+            else if (e.ClickedItem is TLUserCommand command)
+            {
+                var insert = $"/{command.Item.Command}";
+                if (command.User.HasUsername && (ViewModel.With is TLChannel || ViewModel.With is TLChat))
+                {
+                    insert += $"@{command.User.Username}";
+                }
+
+                TextField.SetText(null, null);
+                ViewModel.SendCommand.Execute(insert);
+                ViewModel.BotCommands = null;
+            }
+            else if (e.ClickedItem is EmojiSuggestion emoji && BubbleTextBox.SearchByEmoji(text.Substring(0, Math.Min(TextField.Document.Selection.EndPosition, text.Length)), out string replacement))
+            {
+                var insert = emoji.Emoji;
+                var start = TextField.Document.Selection.StartPosition - 1 - replacement.Length + insert.Length;
+                var range = TextField.Document.GetRange(TextField.Document.Selection.StartPosition - 1 - replacement.Length, TextField.Document.Selection.StartPosition);
+                range.SetText(TextSetOptions.None, insert);
+
+                //TextField.Document.GetRange(start, start).SetText(TextSetOptions.None, " ");
+                //TextField.Document.Selection.StartPosition = start + 1;
+                TextField.Document.Selection.StartPosition = start;
+
+                ViewModel.Autocomplete = null;
             }
         }
 
         #region Binding
 
-        public Visibility ConvertBotInfo(bool hasInfo, bool last)
+        public Visibility ConvertBotInfo(TLBotInfo info, bool last)
         {
-            return hasInfo && last ? Visibility.Visible : Visibility.Collapsed;
+            return info != null && !string.IsNullOrEmpty(info.Description) && last ? Visibility.Visible : Visibility.Collapsed;
         }
 
         public Visibility ConvertIsEmpty(bool empty, bool self, bool bot, bool should)
@@ -1146,6 +1249,130 @@ namespace Unigram.Views
             if (button.DataContext is TLMessage message)
             {
                 ViewModel.MessageShareCommand.Execute(message);
+            }
+        }
+
+        private async void Date_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as FrameworkElement;
+            if (button.DataContext is TLMessageCommonBase message)
+            {
+                var dialog = new Controls.Views.CalendarView();
+                dialog.MaxDate = DateTimeOffset.Now.Date;
+                dialog.SelectedDates.Add(BindConvert.Current.DateTime(message.Date));
+
+                var confirm = await dialog.ShowQueuedAsync();
+                if (confirm == ContentDialogResult.Primary && dialog.SelectedDates.Count > 0)
+                {
+                    var offset = TLUtils.DateToUniversalTimeTLInt(ViewModel.ProtoService.ClientTicksDelta, dialog.SelectedDates.FirstOrDefault().Date);
+                    await ViewModel.LoadDateSliceAsync(offset);
+                }
+            }
+        }
+
+        private void Expand_Click(object sender, RoutedEventArgs e)
+        {
+            if (HeaderOverlay.Visibility == Visibility.Visible)
+            {
+                StickersPanel.MinHeight = 260;
+                StickersPanel.MaxHeight = 360;
+                StickersPanel.Height = _lastKnownKeyboardHeight;
+                ButtonExpand.Glyph = "\uE010";
+
+                HeaderOverlay.Visibility = Visibility.Collapsed;
+                UnmaskTitleAndStatusBar();
+            }
+            else
+            {
+                StickersPanel.MinHeight = ActualHeight - 48 * 2;
+                StickersPanel.MaxHeight = ActualHeight - 48 * 2;
+                StickersPanel.Height = double.NaN;
+                ButtonExpand.Glyph = "\uE011";
+
+                HeaderOverlay.Visibility = Visibility.Visible;
+                MaskTitleAndStatusBar();
+            }
+        }
+
+        private void Collapse_Click(object sender, RoutedEventArgs e)
+        {
+            StickersPanel.MinHeight = 260;
+            StickersPanel.MaxHeight = 360;
+            StickersPanel.Height = _lastKnownKeyboardHeight;
+            ButtonExpand.Glyph = "\uE010";
+
+            HeaderOverlay.Visibility = Visibility.Collapsed;
+            UnmaskTitleAndStatusBar();
+
+            if (HeaderOverlay.Visibility == Visibility.Visible && sender == null)
+            {
+            }
+            else
+            {
+                StickersPanel.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void StickersPanel_VisibilityChanged(DependencyObject sender, DependencyProperty dp)
+        {
+            if (StickersPanel.Visibility == Visibility.Collapsed)
+            {
+                HeaderOverlay.Visibility = Visibility.Collapsed;
+                UnmaskTitleAndStatusBar();
+            }
+        }
+
+        private void OnSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (HeaderOverlay.Visibility == Visibility.Visible)
+            {
+                StickersPanel.MinHeight = e.NewSize.Height - 48 * 2;
+                StickersPanel.MaxHeight = e.NewSize.Height - 48 * 2;
+            }
+        }
+
+        private void MaskTitleAndStatusBar()
+        {
+            var titlebar = ApplicationView.GetForCurrentView().TitleBar;
+            var backgroundBrush = Application.Current.Resources["TelegramBackgroundTitlebarBrush"] as SolidColorBrush;
+            var foregroundBrush = Application.Current.Resources["SystemControlForegroundBaseHighBrush"] as SolidColorBrush;
+            var overlayBrush = new SolidColorBrush(Color.FromArgb(0x99, 0x00, 0x00, 0x00));
+
+            if (overlayBrush != null)
+            {
+                var maskBackground = ColorsHelper.AlphaBlend(backgroundBrush.Color, overlayBrush.Color);
+                var maskForeground = ColorsHelper.AlphaBlend(foregroundBrush.Color, overlayBrush.Color);
+
+                titlebar.BackgroundColor = maskBackground;
+                titlebar.ForegroundColor = maskForeground;
+                titlebar.ButtonBackgroundColor = maskBackground;
+                titlebar.ButtonForegroundColor = maskForeground;
+
+                if (ApiInformation.IsTypePresent("Windows.UI.ViewManagement.StatusBar"))
+                {
+                    var statusBar = StatusBar.GetForCurrentView();
+                    statusBar.BackgroundColor = maskBackground;
+                    statusBar.ForegroundColor = maskForeground;
+                }
+            }
+        }
+
+        private void UnmaskTitleAndStatusBar()
+        {
+            var titlebar = ApplicationView.GetForCurrentView().TitleBar;
+            var backgroundBrush = Application.Current.Resources["TelegramBackgroundTitlebarBrush"] as SolidColorBrush;
+            var foregroundBrush = Application.Current.Resources["SystemControlForegroundBaseHighBrush"] as SolidColorBrush;
+
+            titlebar.BackgroundColor = backgroundBrush.Color;
+            titlebar.ForegroundColor = foregroundBrush.Color;
+            titlebar.ButtonBackgroundColor = backgroundBrush.Color;
+            titlebar.ButtonForegroundColor = foregroundBrush.Color;
+
+            if (ApiInformation.IsTypePresent("Windows.UI.ViewManagement.StatusBar"))
+            {
+                var statusBar = StatusBar.GetForCurrentView();
+                statusBar.BackgroundColor = backgroundBrush.Color;
+                statusBar.ForegroundColor = foregroundBrush.Color;
             }
         }
     }

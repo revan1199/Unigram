@@ -51,7 +51,18 @@ namespace Unigram.Controls.Messages
         public object Message
         {
             get { return (object)GetValue(MessageProperty); }
-            set { SetValue(MessageProperty, value); }
+            //set { SetValue(MessageProperty, value); }
+            set
+            {
+                // TODO: shitty hack!!!
+                var oldValue = (object)GetValue(MessageProperty);
+                SetValue(MessageProperty, value);
+
+                if (oldValue == value)
+                {
+                    SetTemplateCore(value);
+                }
+            }
         }
 
         public static readonly DependencyProperty MessageProperty =
@@ -401,27 +412,34 @@ namespace Unigram.Controls.Messages
         {
             Visibility = Visibility.Visible;
 
-            FindName(nameof(ThumbRoot));
-            if (ThumbRoot != null)
-                ThumbRoot.Visibility = Visibility.Visible;
-
             // 🖼
 
             TitleLabel.Text = GetFromLabel(message, title);
             ServiceLabel.Text = "Photo";
             MessageLabel.Text = string.Empty;
 
-            var photoMedia = message.Media as TLMessageMediaPhoto;
-            if (photoMedia != null)
+            if (message.Media is TLMessageMediaPhoto photoMedia)
             {
+                if (photoMedia.HasTTLSeconds)
+                {
+                    if (ThumbRoot != null)
+                        ThumbRoot.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    FindName(nameof(ThumbRoot));
+                    if (ThumbRoot != null)
+                        ThumbRoot.Visibility = Visibility.Visible;
+
+                    ThumbRoot.CornerRadius = ThumbEllipse.CornerRadius = default(CornerRadius);
+                    ThumbImage.ImageSource = (ImageSource)DefaultPhotoConverter.Convert(photoMedia, true);
+                }
+
                 if (!string.IsNullOrWhiteSpace(photoMedia.Caption))
                 {
                     ServiceLabel.Text += ", ";
                     MessageLabel.Text += photoMedia.Caption.Replace("\r\n", "\n").Replace('\n', ' ');
                 }
-
-                ThumbRoot.CornerRadius = ThumbEllipse.CornerRadius = default(CornerRadius);
-                ThumbImage.ImageSource = (ImageSource)DefaultPhotoConverter.Convert(photoMedia, true);
             }
 
             return true;
@@ -588,25 +606,32 @@ namespace Unigram.Controls.Messages
         {
             Visibility = Visibility.Visible;
 
-            FindName(nameof(ThumbRoot));
-            if (ThumbRoot != null)
-                ThumbRoot.Visibility = Visibility.Visible;
-
             TitleLabel.Text = GetFromLabel(message, title);
             ServiceLabel.Text = "Video";
             MessageLabel.Text = string.Empty;
 
-            var documentMedia = message.Media as TLMessageMediaDocument;
-            if (documentMedia != null)
+            if (message.Media is TLMessageMediaDocument documentMedia)
             {
+                if (documentMedia.HasTTLSeconds)
+                {
+                    if (ThumbRoot != null)
+                        ThumbRoot.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    FindName(nameof(ThumbRoot));
+                    if (ThumbRoot != null)
+                        ThumbRoot.Visibility = Visibility.Visible;
+
+                    ThumbRoot.CornerRadius = ThumbEllipse.CornerRadius = default(CornerRadius);
+                    ThumbImage.ImageSource = (ImageSource)DefaultPhotoConverter.Convert(documentMedia.Document, true);
+                }
+
                 if (!string.IsNullOrWhiteSpace(documentMedia.Caption))
                 {
                     ServiceLabel.Text += ", ";
                     MessageLabel.Text += documentMedia.Caption.Replace("\r\n", "\n").Replace('\n', ' ');
                 }
-
-                ThumbRoot.CornerRadius = ThumbEllipse.CornerRadius = default(CornerRadius);
-                ThumbImage.ImageSource = (ImageSource)DefaultPhotoConverter.Convert(documentMedia.Document, true);
             }
 
             return true;
@@ -854,7 +879,7 @@ namespace Unigram.Controls.Messages
             else
             {
                 var from = message.From?.FullName ?? string.Empty;
-                if (message.ViaBot != null)
+                if (message.ViaBot != null && message.FwdFrom == null)
                 {
                     from += $" via @{message.ViaBot.Username}";
                 }

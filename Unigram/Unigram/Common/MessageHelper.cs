@@ -31,6 +31,7 @@ using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Media.Imaging;
 using Unigram.Views.SignIn;
 using Telegram.Api.Aggregator;
+using Telegram.Api.Transport;
 
 namespace Unigram.Common
 {
@@ -82,9 +83,11 @@ namespace Unigram.Common
                 }
 
                 var game = false;
+                var notGame = true;
                 if (message.Media is TLMessageMediaGame)
                 {
                     game = sender.Tag != null;
+                    notGame = false;
                 }
 
                 var emptyWebPage = false;
@@ -93,7 +96,7 @@ namespace Unigram.Common
                     emptyWebPage = webpageMedia.WebPage is TLWebPageEmpty;
                 }
 
-                sender.Visibility = (message.Media == null || /*message.Media is TLMessageMediaEmpty || message.Media is TLMessageMediaWebPage ||*/ game || caption || text ? Visibility.Visible : Visibility.Collapsed);
+                sender.Visibility = (message.Media == null || /*message.Media is TLMessageMediaEmpty || message.Media is TLMessageMediaWebPage ||*/ game || caption || (text && notGame) ? Visibility.Visible : Visibility.Collapsed);
                 if (sender.Visibility == Visibility.Collapsed)
                 {
                     sender.Inlines.Clear();
@@ -131,7 +134,7 @@ namespace Unigram.Common
                     else if (caption)
                     {
                         var captionMedia2 = message.Media as ITLMessageMediaCaption;
-                        if (captionMedia2 != null && !string.IsNullOrWhiteSpace(captionMedia2.Caption))
+                        if (captionMedia2 != null)
                         {
                             Debug.WriteLine("WARNING: Using Regex to process message entities, considering it as a ITLMediaCaption");
                             ReplaceAll(message, captionMedia2.Caption, paragraph, sender.Foreground, true);
@@ -165,22 +168,26 @@ namespace Unigram.Common
                             bot = message.From.IsBot;
                         }
 
-                        if (message.HasEditDate && !message.HasViaBotId && !bot && message.ReplyMarkup?.TypeId != TLType.ReplyInlineMarkup)
+                        if (message.HasEditDate && !message.HasViaBotId && !bot && !(message.ReplyMarkup is TLReplyInlineMarkup))
                         {
                             placeholder = "edited" + placeholder;
                         }
 
                         if (message.HasViews)
                         {
-                            placeholder = "WS" + (message.Views ?? 0) + placeholder;
+                            placeholder = "WS  " + (message.Views ?? 0) + placeholder;
 
                             if (message.HasFromId && message.From != null)
                             {
-                                placeholder = (message.From.FullName ?? string.Empty) + placeholder;
+                                placeholder = (message.From.FullName + "  " ?? string.Empty) + placeholder;
+                            }
+                            else if (message.HasPostAuthor && message.PostAuthor != null)
+                            {
+                                placeholder = (message.PostAuthor + "  " ?? string.Empty) + placeholder;
                             }
                         }
 
-                        paragraph.Inlines.Add(new Run { Text = "\u200E" + placeholder, Foreground = null });
+                        paragraph.Inlines.Add(new Run { Text = "\u200E" + placeholder, Foreground = null, FontSize = 12 });
                     }
                 }
                 else
@@ -357,7 +364,7 @@ namespace Unigram.Common
             var text = message.Message;
             var previous = 0;
 
-            foreach (var entity in message.Entities)
+            foreach (var entity in message.Entities.OrderBy(x => x.Offset))
             {
                 if (entity.Offset > previous)
                 {
@@ -490,268 +497,6 @@ namespace Unigram.Common
             else
             {
                 paragraph.Inlines.Add(new Run { Text = text });
-            }
-        }
-
-        internal static List<TLMessageEntityBase> GetEntities(ref string message)
-        {
-            if (message == null)
-            {
-                return null;
-            }
-            List<TLMessageEntityBase> entities = null;
-            int index;
-            int start = -1;
-            int lastIndex = 0;
-            bool isPre = false;
-            const String mono = "`";
-            const String pre = "```";
-            const String bold = "**";
-            const String italic = "__";
-            while ((index = message.IndexOf(!isPre ? mono : pre, lastIndex)) != -1)
-            {
-                if (start == -1)
-                {
-                    isPre = message.Length - index > 2 && message[index + 1] == '`' && message[index + 2] == '`';
-                    start = index;
-                    lastIndex = index + (isPre ? 3 : 1);
-                }
-                else
-                {
-                    if (entities == null)
-                    {
-                        entities = new List<TLMessageEntityBase>();
-                    }
-                    for (int a = index + (isPre ? 3 : 1); a < message.Length; a++)
-                    {
-                        if (message[a] == '`')
-                        {
-                            index++;
-                        }
-                        else
-                        {
-                            break;
-                        }
-                    }
-                    lastIndex = index + (isPre ? 3 : 1);
-                    if (isPre)
-                    {
-                        int firstChar = start > 0 ? message[start - 1] : 0;
-                        bool replacedFirst = firstChar == ' ' || firstChar == '\n';
-                        string startMessage = message.Substr(0, start - (replacedFirst ? 1 : 0));
-                        string content = message.Substr(start + 3, index);
-                        firstChar = index + 3 < message.Length ? message[index + 3] : 0;
-                        string endMessage = message.Substr(index + 3 + (firstChar == ' ' || firstChar == '\n' ? 1 : 0), message.Length);
-                        if (startMessage.Length != 0)
-                        {
-                            startMessage = string.Concat(startMessage, "\n");
-                        }
-                        else
-                        {
-                            replacedFirst = true;
-                        }
-                        if (endMessage.Length != 0)
-                        {
-                            endMessage = string.Concat("\n", endMessage);
-                        }
-                        if (!string.IsNullOrEmpty(content))
-                        {
-                            message = string.Concat(startMessage, content, endMessage);
-                            TLMessageEntityPre entity = new TLMessageEntityPre();
-                            entity.Offset = start + (replacedFirst ? 0 : 1);
-                            entity.Length = index - start - 3 + (replacedFirst ? 0 : 1);
-                            entity.Language = string.Empty;
-                            entities.Add(entity);
-                            lastIndex -= 6;
-                        }
-                    }
-                    else
-                    {
-                        if (start + 1 != index)
-                        {
-                            message = string.Concat(message.Substr(0, start), message.Substr(start + 1, index), message.Substr(index + 1, message.Length));
-                            TLMessageEntityCode entity = new TLMessageEntityCode();
-                            entity.Offset = start;
-                            entity.Length = index - start - 1;
-                            entities.Add(entity);
-                            lastIndex -= 2;
-                        }
-                    }
-                    start = -1;
-                    isPre = false;
-                }
-            }
-            if (start != -1 && isPre)
-            {
-                message = string.Concat(message.Substr(0, start), message.Substr(start + 2, message.Length));
-                if (entities == null)
-                {
-                    entities = new List<TLMessageEntityBase>();
-                }
-                TLMessageEntityCode entity = new TLMessageEntityCode();
-                entity.Offset = start;
-                entity.Length = 1;
-                entities.Add(entity);
-            }
-
-            //            if (message instanceof Spannable) {
-            //                Spannable spannable = (Spannable)message;
-            //                TypefaceSpan spans[] = spannable.getSpans(0, message.length(), TypefaceSpan.class);
-            //            if (spans != null && spans.length > 0) {
-            //                for (int a = 0; a<spans.length; a++) {
-            //                    TypefaceSpan span = spans[a];
-            //        int spanStart = spannable.getSpanStart(span);
-            //        int spanEnd = spannable.getSpanEnd(span);
-            //                    if (checkInclusion(spanStart, entities) || checkInclusion(spanEnd, entities) || checkIntersection(spanStart, spanEnd, entities)) {
-            //                        continue;
-            //                    }
-            //                    if (entities == null) {
-            //                        entities = new ArrayList<>();
-            //                    }
-            //    TLRPC.MessageEntity entity;
-            //                    if (span.isBold()) {
-            //                        entity = new TLRPC.TL_messageEntityBold();
-            //                    } else {
-            //                        entity = new TLRPC.TL_messageEntityItalic();
-            //                    }
-            //                    entity.offset = spanStart;
-            //                    entity.length = spanEnd - spanStart;
-            //                    entities.add(entity);
-            //                }
-            //            }
-
-            //            URLSpanUserMention spansMentions[] = spannable.getSpans(0, message.length(), URLSpanUserMention.class);
-            //            if (spansMentions != null && spansMentions.length > 0) {
-            //                if (entities == null) {
-            //                    entities = new ArrayList<>();
-            //                }
-            //                for (int b = 0; b<spansMentions.length; b++) {
-            //                    TLRPC.TL_inputMessageEntityMentionName entity = new TLRPC.TL_inputMessageEntityMentionName();
-            //entity.user_id = MessagesController.getInputUser(Utilities.parseInt(spansMentions[b].getURL()));
-            //                    if (entity.user_id != null) {
-            //                        entity.offset = spannable.getSpanStart(spansMentions[b]);
-            //                        entity.length = Math.min(spannable.getSpanEnd(spansMentions[b]), message.length()) - entity.offset;
-            //                        if (message.charAt(entity.offset + entity.length - 1) == ' ') {
-            //                            entity.length--;
-            //                        }
-            //                        entities.add(entity);
-            //                    }
-            //                }
-            //            }
-            //        }
-
-            for (int c = 0; c < 2; c++)
-            {
-                lastIndex = 0;
-                start = -1;
-                String checkString = c == 0 ? bold : italic;
-                char checkChar = c == 0 ? '*' : '_';
-                while ((index = message.IndexOf(checkString, lastIndex)) != -1)
-                {
-                    if (start == -1)
-                    {
-                        char prevChar = index == 0 ? ' ' : message[index - 1];
-                        if (!CheckInclusion(index, entities) && (prevChar == ' ' || prevChar == '\n'))
-                        {
-                            start = index;
-                        }
-                        lastIndex = index + 2;
-                    }
-                    else
-                    {
-                        for (int a = index + 2; a < message.Length; a++)
-                        {
-                            if (message[a] == checkChar)
-                            {
-                                index++;
-                            }
-                            else
-                            {
-                                break;
-                            }
-                        }
-                        lastIndex = index + 2;
-                        if (CheckInclusion(index, entities) || CheckIntersection(start, index, entities))
-                        {
-                            start = -1;
-                            continue;
-                        }
-                        if (start + 2 != index)
-                        {
-                            if (entities == null)
-                            {
-                                entities = new List<TLMessageEntityBase>();
-                            }
-                            message = string.Concat(message.Substr(0, start), message.Substr(start + 2, index), message.Substr(index + 2, message.Length));
-                            TLMessageEntityBase entity;
-                            if (c == 0)
-                            {
-                                entity = new TLMessageEntityBold();
-                            }
-                            else
-                            {
-                                entity = new TLMessageEntityItalic();
-                            }
-                            entity.Offset = start;
-                            entity.Length = index - start - 2;
-                            RemoveOffsetAfter(entity.Offset + entity.Length, 4, entities);
-                            entities.Add(entity);
-                            lastIndex -= 4;
-                        }
-                        start = -1;
-                    }
-                }
-            }
-
-            return entities;
-        }
-
-        public static bool CheckInclusion(int index, List<TLMessageEntityBase> entities)
-        {
-            if (entities == null || entities.Count == 0)
-            {
-                return false;
-            }
-            int count = entities.Count;
-            for (int a = 0; a < count; a++)
-            {
-                TLMessageEntityBase entity = entities[a];
-                if (entity.Offset <= index && entity.Offset + entity.Length > index)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        public static bool CheckIntersection(int start, int end, List<TLMessageEntityBase> entities)
-        {
-            if (entities == null || entities.Count == 0)
-            {
-                return false;
-            }
-            int count = entities.Count;
-            for (int a = 0; a < count; a++)
-            {
-                TLMessageEntityBase entity = entities[a];
-                if (entity.Offset > start && entity.Offset + entity.Length <= end)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        private static void RemoveOffsetAfter(int start, int countToRemove, List<TLMessageEntityBase> entities)
-        {
-            int count = entities.Count;
-            for (int a = 0; a < count; a++)
-            {
-                TLMessageEntityBase entity = entities[a];
-                if (entity.Offset > start)
-                {
-                    entity.Offset -= countToRemove;
-                }
             }
         }
 
@@ -903,7 +648,7 @@ namespace Unigram.Common
 
                     if (Uri.TryCreate(url, UriKind.Absolute, out Uri uri))
                     {
-                        if (Constants.TelegramHosts.Contains(uri.Host))
+                        if (MessageHelper.IsTelegramUrl(uri))
                         {
                             HandleTelegramUrl(message, navigation);
                         }
@@ -930,7 +675,7 @@ namespace Unigram.Common
                                 dialog.PrimaryButtonText = "Open";
                                 dialog.SecondaryButtonText = "Cancel";
 
-                                var result = await dialog.ShowAsync();
+                                var result = await dialog.ShowQueuedAsync();
                                 if (result != ContentDialogResult.Primary)
                                 {
                                     return;
@@ -1027,6 +772,22 @@ namespace Unigram.Common
             //}
         }
 
+        public static bool IsTelegramUrl(Uri uri)
+        {
+            if (Constants.TelegramHosts.Contains(uri.Host))
+            {
+                return true;
+            }
+
+            var config = InMemoryCacheService.Current.GetConfig();
+            if (config != null && Uri.TryCreate(config.MeUrlPrefix, UriKind.Absolute, out Uri meUri))
+            {
+                return uri.Host.Equals(meUri.Host, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return false;
+        }
+
         public static void HandleTelegramUrl(string url)
         {
             HandleTelegramUrl(null, url);
@@ -1110,6 +871,47 @@ namespace Unigram.Common
 
                                 await Launcher.LaunchUriAsync(new Uri(navigation));
                             }
+                            else if (username.Equals("socks", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var server = query.GetParameter("server");
+                                var port = query.GetParameter("port");
+                                var user = query.GetParameter("user");
+                                var pass = query.GetParameter("pass");
+
+                                if (server != null && int.TryParse(port, out int portCode))
+                                {
+                                    NavigateToSocks(server, portCode, user, pass);
+                                }
+                            }
+                            else if (username.Equals("share"))
+                            {
+                                var hasUrl = false;
+                                var text = query.GetParameter("url");
+                                if (text == null)
+                                {
+                                    text = "";
+                                }
+                                if (query.GetParameter("text") != null)
+                                {
+                                    if (text.Length > 0)
+                                    {
+                                        hasUrl = true;
+                                        text += "\n";
+                                    }
+                                    text += query.GetParameter("text");
+                                }
+                                if (text.Length > 4096 * 4)
+                                {
+                                    text = text.Substring(0, 4096 * 4);
+                                }
+                                while (text.EndsWith("\n"))
+                                {
+                                    text = text.Substring(0, text.Length - 1);
+                                }
+
+
+                                NavigateToShare(text, hasUrl);
+                            }
                             else
                             {
                                 NavigateToUsername(MTProtoService.Current, username, accessToken, post, string.IsNullOrEmpty(game) ? null : game);
@@ -1117,6 +919,28 @@ namespace Unigram.Common
                         }
                     }
                 }
+            }
+        }
+
+        public static async void NavigateToShare(string text, bool hasUrl)
+        {
+            await ForwardView.Current.ShowAsync(text, hasUrl);
+        }
+
+        public static async void NavigateToSocks(string server, int port, string user, string pass)
+        {
+            var userText = user != null ? string.Format("Username: {0}\n", user) : string.Empty;
+            var passText = pass != null ? string.Format("Password: {0}\n", pass) : string.Empty;
+            var confirm = await TLMessageDialog.ShowAsync(string.Format("Are you sure you want to enable this proxy?\n\nServer: {0}\nPort: {1}\n{2}{3}\nYou can change your proxy server later in the Settings (Data and Storage).", server, port, userText, passText), "Proxy", "Enable", "Cancel");
+            if (confirm == ContentDialogResult.Primary)
+            {
+                SettingsHelper.ProxyServer = server;
+                SettingsHelper.ProxyPort = port;
+                SettingsHelper.ProxyUsername = user;
+                SettingsHelper.ProxyPassword = pass;
+                SettingsHelper.IsProxyEnabled = true;
+                UnigramContainer.Current.ResolveType<ITransportService>().Close();
+                UnigramContainer.Current.ResolveType<IMTProtoService>().PingAsync(TLLong.Random(), null);
             }
         }
 
@@ -1184,7 +1008,14 @@ namespace Unigram.Common
                     }
                     else
                     {
-                        service.NavigateToDialog(user, accessToken: accessToken);
+                        if (user.IsBot)
+                        {
+                            service.NavigateToDialog(user, accessToken: accessToken);
+                        }
+                        else
+                        {
+                            service.Navigate(typeof(UserDetailsPage), user.ToPeer());
+                        }
                     }
 
                     //if (user.IsBot)
@@ -1227,7 +1058,14 @@ namespace Unigram.Common
                             }
                             else
                             {
-                                service.NavigateToDialog(user, accessToken: accessToken);
+                                if (user.IsBot)
+                                {
+                                    service.NavigateToDialog(user, accessToken: accessToken);
+                                }
+                                else
+                                {
+                                    service.Navigate(typeof(UserDetailsPage), peerUser);
+                                }
                             }
 
 

@@ -24,7 +24,7 @@
     </Page.Transitions>
 
     <Page.Resources>
-        <CollectionViewSource x:Key="SearchResults" Source="{Binding Dialogs.Search}" IsSourceGrouped="True"/>
+        <CollectionViewSource x:Name="SearchResults" Source="{Binding Dialogs.Search}" IsSourceGrouped="True"/>
 
         <MenuFlyout x:Key="DialogMenuFlyout" Opening="MenuFlyout_Opening">
             <MenuFlyoutItem Loaded="DialogPin_Loaded" Command="{x:Bind ViewModel.Dialogs.DialogPinCommand}" CommandParameter="{Binding}" Text="Pin to top"/>
@@ -97,13 +97,24 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition/>
             </Grid.RowDefinitions>
-            <Border x:Name="Theme" IsHitTestVisible="False" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Width="0" Height="0"/>
             <controls:PageHeader/>
             
             <Pivot x:Name="rpMasterTitlebar" SelectionChanged="Pivot_SelectionChanged" Grid.RowSpan="2">
                 <Pivot.HeaderTemplate>
                     <DataTemplate x:DataType="x:String">
-                        <TextBlock Text="{x:Bind}" Style="{StaticResource BaseTextBlockStyle}"/>
+                        <TextBlock Text="{x:Bind}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontFamily" Value="XamlAutoFontFamily" />
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                    <Setter Property="FontSize" Value="15" />
+                                    <Setter Property="TextTrimming" Value="None" />
+                                    <Setter Property="TextWrapping" Value="Wrap" />
+                                    <Setter Property="LineStackingStrategy" Value="MaxHeight" />
+                                    <Setter Property="TextLineBounds" Value="Full" />
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </DataTemplate>
                 </Pivot.HeaderTemplate>
                 <Pivot.RightHeader>
@@ -164,8 +175,10 @@
                         <controls:SearchTextBox x:Name="SearchDialogs"
                                                 Style="{StaticResource SearchTextBoxStyle}"
                                                 Text="{Binding Dialogs.SearchQuery, Mode=TwoWay}"
+                                                PreventKeyboardDisplayOnProgrammaticFocus="True"
                                                 PlaceholderText="Search chats and messages"
                                                 TextChanged="txtSearch_TextChanged"
+                                                KeyDown="txtSearch_KeyDown"
                                                 Canvas.ZIndex="1"/>
                         <Grid Canvas.ZIndex="-1" Grid.Row="1">
                             <controls:ScrollViewerBackground
@@ -230,21 +243,7 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition/>
                                                 </Grid.ColumnDefinitions>
-                                                <!--<Grid Background="{x:Bind Id, Converter={StaticResource BubblePlaceholderConverter}}" Width="36" Height="36" CornerRadius="18" Margin="0,0,12,0" Grid.RowSpan="2">
-                                                     <TextBlock Foreground="White" Text="{x:Bind Converter={StaticResource InitialNameStringConverter}}" VerticalAlignment="Center" TextAlignment="Center"/>
-                                                     <Ellipse>
-                                                     <Ellipse.Fill>
-                                                     <ImageBrush ImageSource="{x:Bind Photo, Converter={StaticResource DefaultPhotoConverter}}" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"/>
-                                                     </Ellipse.Fill>
-                                                     </Ellipse>
-                                                     <Border BorderBrush="#26000000" BorderThickness="1" CornerRadius="24" Width="36" Height="36" VerticalAlignment="Top" Grid.RowSpan="2" Grid.Column="1"/>
-                                                     </Grid>-->
-
-                                                <Ellipse Width="36" Height="36" Margin="0,0,12,0" Grid.RowSpan="2">
-                                                    <Ellipse.Fill>
-                                                        <ImageBrush ImageSource="{x:Bind Converter={StaticResource DefaultPhotoConverter}}" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"/>
-                                                    </Ellipse.Fill>
-                                                </Ellipse>
+                                                <controls:ProfilePictureView Source="{x:Bind PhotoSelf, Mode=OneWay, Converter={StaticResource DefaultPhotoConverter}}" Width="36" Height="36" Margin="0,0,12,0" Grid.RowSpan="2"/>
 
                                                 <TextBlock Text="{x:Bind FullName}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Grid.Column="1" VerticalAlignment="Bottom" Grid.Row="0"/>
                                                 <TextBlock Text="{x:Bind Username}"
@@ -274,20 +273,7 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition/>
                                                 </Grid.ColumnDefinitions>
-                                                <!--<Grid Background="{x:Bind Id, Converter={StaticResource BubblePlaceholderConverter}}" Width="36" Height="36" CornerRadius="18" Margin="0,0,12,0" Grid.RowSpan="2">
-                                                     <TextBlock Foreground="White" Text="{x:Bind Converter={StaticResource InitialNameStringConverter}}" VerticalAlignment="Center" TextAlignment="Center"/>
-                                                     <Ellipse>
-                                                     <Ellipse.Fill>
-                                                     <ImageBrush ImageSource="{x:Bind Photo, Converter={StaticResource DefaultPhotoConverter}}" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"/>
-                                                     </Ellipse.Fill>
-                                                     </Ellipse>
-                                                     <Border BorderBrush="#26000000" BorderThickness="1" CornerRadius="24" Width="36" Height="36" VerticalAlignment="Top" Grid.RowSpan="2" Grid.Column="1"/>
-                                                     </Grid>-->
-                                                <Ellipse Width="36" Height="36" Margin="0,0,12,0" Grid.RowSpan="2">
-                                                    <Ellipse.Fill>
-                                                        <ImageBrush ImageSource="{x:Bind Converter={StaticResource DefaultPhotoConverter}}" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"/>
-                                                    </Ellipse.Fill>
-                                                </Ellipse>
+                                                <controls:ProfilePictureView Source="{x:Bind PhotoSelf, Mode=OneWay, Converter={StaticResource DefaultPhotoConverter}}" Width="36" Height="36" Margin="0,0,12,0" Grid.RowSpan="2"/>
 
                                                 <TextBlock Text="{x:Bind DisplayName}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Grid.Column="1" VerticalAlignment="Bottom" Grid.Row="0"/>
                                                 <TextBlock Text="{x:Bind Username}"
@@ -349,6 +335,9 @@
                                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                                 </Style>
                             </ListView.ItemContainerStyle>
+                            <ListView.ItemContainerTransitions>
+                                <TransitionCollection/>
+                            </ListView.ItemContainerTransitions>
                             <ListView.GroupStyle>
                                 <GroupStyle>
                                     <GroupStyle.HeaderTemplate>

@@ -43,6 +43,7 @@ namespace Unigram.ViewModels
         //IHandle<TLUpdateChatUserTyping>, 
         //IHandle<ClearCacheEventArgs>, 
         //IHandle<ClearLocalDatabaseEventArgs>, 
+        IHandle<TLUpdateContactLink>,
         IHandle<TLUpdateEditMessage>,
         IHandle<TLUpdateEditChannelMessage>,
         IHandle<TLUpdateDraftMessage>,
@@ -80,6 +81,44 @@ namespace Unigram.ViewModels
 
         public async void LoadFirstSlice()
         {
+            var test = CacheService.GetDialogs();
+            if (test.Count > 0)
+            {
+                var config = CacheService.GetConfig();
+                var pinnedIndex = 0;
+
+                var items = new List<TLDialog>(test.Count);
+
+                foreach (var item in test)
+                {
+                    if (item.IsPinned)
+                    {
+                        item.PinnedIndex = pinnedIndex++;
+                    }
+
+                    if (item.With is TLChat chat && chat.HasMigratedTo)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        items.Add(item);
+                    }
+                }
+
+                Execute.BeginOnUIThread(() =>
+                {
+                    Items.ReplaceWith(items);
+                    IsFirstPinned = Items.Any(x => x.IsPinned);
+                    PinnedDialogsIndex = pinnedIndex;
+                    PinnedDialogsCountMax = config.PinnedDialogsCountMax;
+                });
+
+                Aggregator.Subscribe(this);
+
+                return;
+            }
+
             var lastDate = 0;
             var lastMsgId = 0;
             var lastPeer = (TLInputPeerBase)new TLInputPeerEmpty();
@@ -207,8 +246,24 @@ namespace Unigram.ViewModels
             OnDialogAdded(this, eventArgs);
         }
 
-        public void Handle(DialogRemovedEventArgs args)
+        public async void Handle(DialogRemovedEventArgs args)
         {
+            if (args.Dialog.With == null)
+            {
+                return;
+            }
+
+            var response = await ProtoService.GetHistoryAsync(args.Dialog.ToInputPeer(), args.Dialog.Peer, true, 0, 0, int.MaxValue, 1);
+            if (response.IsSucceeded && response.Result.Messages.Count > 0)
+            {
+                args.Dialog.TopMessageItem = response.Result.Messages[0];
+                args.Dialog.TopMessage = response.Result.Messages[0].Id;
+                args.Dialog.TopMessageRandomId = null;
+
+                Handle(new TopMessageUpdatedEventArgs(args.Dialog, response.Result.Messages[0]));
+                return;
+            }
+
             Execute.BeginOnUIThread(() =>
             {
                 var dialog = Items.FirstOrDefault(x => x.Id == args.Dialog.Id);
@@ -274,6 +329,21 @@ namespace Unigram.ViewModels
         //{
         //    this.HandleTypingCommon(chatUserTyping, this._chatUserTypingCache);
         //}
+
+        public void Handle(TLUpdateContactLink update)
+        {
+            Execute.BeginOnUIThread(() =>
+            {
+                for (int i = 0; i < Items.Count; i++)
+                {
+                    if (Items[i].With is TLUserBase user && user.Id == update.UserId)
+                    {
+                        user.RaisePropertyChanged(() => user.DisplayName);
+                        Items[i].RaisePropertyChanged(() => Items[i].With);
+                    }
+                }
+            });
+        }
 
         public void Handle(TLUpdateEditMessage update)
         {
@@ -521,7 +591,7 @@ namespace Unigram.ViewModels
             TLNotifyPeer notifyPeer = notifySettings.Peer as TLNotifyPeer;
             if (notifyPeer != null)
             {
-                Execute.BeginOnUIThread(delegate
+                Execute.BeginOnUIThread(() =>
                 {
                     for (int i = 0; i < Items.Count; i++)
                     {
@@ -529,7 +599,7 @@ namespace Unigram.ViewModels
                         if (dialog != null && dialog.Peer != null && dialog.Peer.Id == notifyPeer.Peer.Id && dialog.Peer.GetType() == notifyPeer.Peer.GetType())
                         {
                             dialog.RaisePropertyChanged(() => dialog.NotifySettings);
-                            dialog.RaisePropertyChanged(() => dialog.MutedVisibility);
+                            dialog.RaisePropertyChanged(() => dialog.IsMuted);
                             dialog.RaisePropertyChanged(() => dialog.Self);
                             return;
                         }
@@ -624,6 +694,12 @@ namespace Unigram.ViewModels
                     var channel = e.Dialog.With as TLChannel;
                     if (channel != null)
                     {
+                        if (channel.IsLeft || channel.HasBannedRights)
+                        {
+                            Items.Remove(e.Dialog);
+                            return;
+                        }
+
                         var serviceMessage = e.Dialog.TopMessageItem as TLMessageService;
                         if (serviceMessage != null)
                         {
@@ -644,7 +720,7 @@ namespace Unigram.ViewModels
                         var already = Items.FirstOrDefault(x => x.Id == e.Dialog.Id);
                         if (already != null)
                         {
-                            Execute.BeginOnUIThread(async () => await new TLMessageDialog("Something is gone really wrong and the InMemoryCacheService is messed up.", "Warning").ShowQueuedAsync());
+                            //Execute.BeginOnUIThread(async () => await new TLMessageDialog("Something is gone really wrong and the InMemoryCacheService is messed up.", "Warning").ShowQueuedAsync());
 
                             var index = Items.IndexOf(already);
 
@@ -1008,7 +1084,7 @@ namespace Unigram.ViewModels
                 question.Title = "Warning";
                 question.Message = string.Format("Sorry, you can pin no more than {0} chats to the top.", PinnedDialogsCountMax);
                 question.PrimaryButtonText = "OK";
-                await question.ShowAsync();
+                await question.ShowQueuedAsync();
                 return;
             }
 
@@ -1103,7 +1179,7 @@ namespace Unigram.ViewModels
                         CacheService.DeleteDialog(dialog);
                         Items.Remove(dialog);
 
-                        NavigationService.RemovePeerFromBackStack(dialog.With.ToPeer());
+                        NavigationService.RemovePeerFromStack(dialog.With.ToPeer());
                     }
                 }
             }
@@ -1131,25 +1207,34 @@ namespace Unigram.ViewModels
             if (confirm == ContentDialogResult.Primary)
             {
                 var peer = dialog.ToInputPeer();
-                var response = await ProtoService.DeleteHistoryAsync(justClear, peer, int.MaxValue);
-                if (response.IsSucceeded)
+                var offset = 0;
+
+                do
                 {
-                    if (justClear)
+                    var response = await ProtoService.DeleteHistoryAsync(justClear, peer, 0);
+                    if (response.IsSucceeded)
                     {
-                        CacheService.ClearDialog(dialog.Peer);
-                        dialog.RaisePropertyChanged(() => dialog.UnreadCount);
+                        offset = response.Result.Offset;
                     }
                     else
                     {
-                        CacheService.DeleteDialog(dialog);
-                        Items.Remove(dialog);
-
-                        NavigationService.RemovePeerFromBackStack(dialog.With.ToPeer());
+                        await new TLMessageDialog(response.Error.ErrorMessage ?? "Error message", response.Error.ErrorCode.ToString()).ShowQueuedAsync();
+                        return;
                     }
+                }
+                while (offset > 0);
+
+                if (justClear)
+                {
+                    CacheService.ClearDialog(dialog.Peer);
+                    dialog.RaisePropertyChanged(() => dialog.UnreadCount);
                 }
                 else
                 {
-                    await TLMessageDialog.ShowAsync("Clearing the chat failed!", "Error", "Okay");
+                    CacheService.DeleteDialog(dialog);
+                    Items.Remove(dialog);
+
+                    NavigationService.RemovePeerFromStack(dialog.With.ToPeer());
                 }
             }
         }

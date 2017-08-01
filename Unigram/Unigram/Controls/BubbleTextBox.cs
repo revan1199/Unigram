@@ -35,6 +35,7 @@ using Unigram.Core;
 using Windows.UI.Xaml.Automation.Peers;
 using Windows.UI.Xaml.Automation.Provider;
 using Telegram.Api.TL.Channels;
+using Unigram.Native;
 
 namespace Unigram.Controls
 {
@@ -99,12 +100,12 @@ namespace Unigram.Controls
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            Window.Current.CoreWindow.Dispatcher.AcceleratorKeyActivated += Dispatcher_AcceleratorKeyActivated;
+            App.AcceleratorKeyActivated += Dispatcher_AcceleratorKeyActivated;
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
-            Window.Current.CoreWindow.Dispatcher.AcceleratorKeyActivated -= Dispatcher_AcceleratorKeyActivated;
+            App.AcceleratorKeyActivated -= Dispatcher_AcceleratorKeyActivated;
         }
 
         protected override void OnApplyTemplate()
@@ -194,7 +195,7 @@ namespace Unigram.Controls
             // If the user tries to paste RTF content from any TOM control (Visual Studio, Word, Wordpad, browsers)
             // we have to handle the pasting operation manually to allow plaintext only.
             var package = Clipboard.GetContent();
-            /*if (package.Contains(StandardDataFormats.Text) && package.Contains("Rich Text Format"))
+            if (package.Contains(StandardDataFormats.Text) && package.Contains("Rich Text Format"))
             {
                 e.Handled = true;
 
@@ -219,8 +220,7 @@ namespace Unigram.Controls
             {
                 e.Handled = true;
             }
-            else*/
-            if (package.Contains(StandardDataFormats.Bitmap))
+            else if (package.Contains(StandardDataFormats.Bitmap))
             {
                 e.Handled = true;
 
@@ -310,42 +310,20 @@ namespace Unigram.Controls
 
         private async void Dispatcher_AcceleratorKeyActivated(CoreDispatcher sender, AcceleratorKeyEventArgs args)
         {
-            if (args.VirtualKey == VirtualKey.Enter && args.EventType == CoreAcceleratorKeyEventType.KeyDown && FocusState != FocusState.Unfocused)
+            if ((args.VirtualKey == VirtualKey.Enter || args.VirtualKey == VirtualKey.Tab) && args.EventType == CoreAcceleratorKeyEventType.KeyDown && FocusState != FocusState.Unfocused)
             {
                 // Check if CTRL or Shift is also pressed in addition to Enter key.
                 var ctrl = Window.Current.CoreWindow.GetKeyState(VirtualKey.Control);
                 var shift = Window.Current.CoreWindow.GetKeyState(VirtualKey.Shift);
-                var key = Window.Current.CoreWindow.GetKeyState(args.VirtualKey);
+                var key = Window.Current.CoreWindow.GetKeyState(VirtualKey.Enter);
 
-                if (UsernameHints != null && ViewModel.UsernameHints != null)
+                if (Autocomplete != null && ViewModel.Autocomplete != null)
                 {
                     var send = key.HasFlag(CoreVirtualKeyStates.Down) && !ctrl.HasFlag(CoreVirtualKeyStates.Down) && !shift.HasFlag(CoreVirtualKeyStates.Down);
-                    if (send)
+                    if (send || args.VirtualKey == VirtualKey.Tab)
                     {
                         AcceptsReturn = false;
-                        var container = UsernameHints.ContainerFromIndex(Math.Max(0, UsernameHints.SelectedIndex)) as ListViewItem;
-                        if (container != null)
-                        {
-                            var peer = new ListViewItemAutomationPeer(container);
-                            var invokeProv = peer.GetPattern(PatternInterface.Invoke) as IInvokeProvider;
-                            invokeProv.Invoke();
-                        }
-                    }
-                    else
-                    {
-                        AcceptsReturn = true;
-                    }
-
-                    return;
-                }
-
-                if (BotCommands != null && ViewModel.BotCommands != null)
-                {
-                    var send = key.HasFlag(CoreVirtualKeyStates.Down) && !ctrl.HasFlag(CoreVirtualKeyStates.Down) && !shift.HasFlag(CoreVirtualKeyStates.Down);
-                    if (send)
-                    {
-                        AcceptsReturn = false;
-                        var container = BotCommands.ContainerFromIndex(Math.Max(0, BotCommands.SelectedIndex)) as ListViewItem;
+                        var container = Autocomplete.ContainerFromIndex(Math.Max(0, Autocomplete.SelectedIndex)) as ListViewItem;
                         if (container != null)
                         {
                             var peer = new ListViewItemAutomationPeer(container);
@@ -391,9 +369,7 @@ namespace Unigram.Controls
             }
         }
 
-        public ListView UsernameHints { get; set; }
-
-        public ListView BotCommands { get; set; }
+        public ListView Autocomplete { get; set; }
 
         protected override void OnKeyDown(KeyRoutedEventArgs e)
         {
@@ -432,34 +408,24 @@ namespace Unigram.Controls
                 }
                 else if (e.Key == VirtualKey.Up || e.Key == VirtualKey.Down)
                 {
-                    if (UsernameHints != null && ViewModel.UsernameHints != null)
+                    if (Autocomplete != null && ViewModel.Autocomplete != null)
                     {
-                        UsernameHints.SelectionMode = ListViewSelectionMode.Single;
+                        Autocomplete.SelectionMode = ListViewSelectionMode.Single;
 
                         var index = e.Key == VirtualKey.Up ? -1 : 1;
-                        var next = UsernameHints.SelectedIndex + index;
-                        if (next >= 0 && next < ViewModel.UsernameHints.Count)
+                        var next = Autocomplete.SelectedIndex + index;
+                        if (next >= 0 && next < ViewModel.Autocomplete.Count)
                         {
-                            UsernameHints.SelectedIndex = next;
-                            UsernameHints.ScrollIntoView(UsernameHints.SelectedItem);
+                            Autocomplete.SelectedIndex = next;
+                            Autocomplete.ScrollIntoView(Autocomplete.SelectedItem);
                         }
 
                         e.Handled = true;
                     }
-                    else if (BotCommands != null && ViewModel.BotCommands != null)
-                    {
-                        BotCommands.SelectionMode = ListViewSelectionMode.Single;
-
-                        var index = e.Key == VirtualKey.Up ? -1 : 1;
-                        var next = BotCommands.SelectedIndex + index;
-                        if (next >= 0 && next < ViewModel.BotCommands.Count)
-                        {
-                            BotCommands.SelectedIndex = next;
-                            BotCommands.ScrollIntoView(BotCommands.SelectedItem);
-                        }
-
-                        e.Handled = true;
-                    }
+                }
+                else if (e.Key == VirtualKey.Tab)
+                {
+                    e.Handled = true;
                 }
             }
             else if (e.Key == VirtualKey.Escape && ViewModel.Reply is TLMessagesContainter container && container.EditMessage != null)
@@ -527,11 +493,11 @@ namespace Unigram.Controls
         {
             //var text = Text.Substring(0, Math.Max(Document.Selection.StartPosition, Document.Selection.EndPosition));
             var text = Text;
-            var command = string.Empty;
-            var inline = SearchInlineBotResults(text, out command);
+            var query = string.Empty;
+            var inline = SearchInlineBotResults(text, out query);
             if (inline && fast)
             {
-                ViewModel.GetInlineBotResults(command);
+                ViewModel.GetInlineBotResults(query);
             }
             else if (!inline)
             {
@@ -554,50 +520,36 @@ namespace Unigram.Controls
                 {
                     ViewModel.StickerPack = null;
 
-                    var usernames = SearchByUsernames(text.Substring(0, Math.Min(Document.Selection.EndPosition, text.Length)), out string usernamesText); 
-                    if (usernames)
+                    if (SearchByUsername(text.Substring(0, Math.Min(Document.Selection.EndPosition, text.Length)), out string username))
                     {
-                        ViewModel.UsernameHints = GetUsernames(usernamesText.ToLower(), text.StartsWith('@' + usernamesText));
+                        ViewModel.Autocomplete = GetUsernames(username.ToLower(), text.StartsWith('@' + username));
+                    }
+                    else if (SearchByEmoji(text.Substring(0, Math.Min(Document.Selection.EndPosition, text.Length)), out string replacement) && replacement.Length > 0)
+                    {
+                        ViewModel.Autocomplete = EmojiSuggestion.GetSuggestions(replacement);
+                    }
+                    else if (text.Length > 0 && text[0] == '/' && SearchByCommands(text, out string command))
+                    {
+                        ViewModel.Autocomplete = GetCommands(command.ToLower());
                     }
                     else
                     {
-                        ViewModel.UsernameHints = null;
-                    }
-
-                    if (text.Length > 0 && text[0] == '/')
-                    {
-                        var commands = SearchByCommands(text, out string searchText);
-                        if (commands)
-                        {
-                            var result = GetCommands(searchText.ToLower());
-                            if (ViewModel.BotCommands != null && ViewModel.BotCommands.SequenceEqual(result))
-                            {
-
-                            }
-                            else
-                            {
-                                ViewModel.BotCommands = result;
-                            }
-                        }
-                        else
-                        {
-                            ViewModel.BotCommands = null;
-                        }
-                    }
-                    else
-                    {
-                        ViewModel.BotCommands = null;
+                        ViewModel.Autocomplete = null;
                     }
                 }
             }
         }
 
-        private List<Tuple<TLUser, TLBotCommand>> GetCommands(string command)
+        private List<TLUserCommand> GetCommands(string command)
         {
-            var all = ViewModel.UnfilteredBotCommands;
+            var all = ViewModel.BotCommands;
             if (all != null)
             {
-                return all.Where(x => x.Item2.Command.ToLower().StartsWith(command)).ToList();
+                var results = all.Where(x => x.Item.Command.ToLower().StartsWith(command, StringComparison.OrdinalIgnoreCase)).ToList();
+                if (results.Count > 0)
+                {
+                    return results;
+                }
             }
 
             return null;
@@ -712,6 +664,50 @@ namespace Unigram.Controls
             return flag;
         }
 
+        public static bool SearchByEmoji(string text, out string searchText)
+        {
+            searchText = string.Empty;
+
+            var c = ':';
+            var flag = true;
+            var index = -1;
+            var i = text.Length - 1;
+
+            while (i >= 0)
+            {
+                if (text[i] == c)
+                {
+                    if (i == 0 || text[i - 1] == ' ')
+                    {
+                        index = i;
+                        break;
+                    }
+                    flag = false;
+                    break;
+                }
+                else
+                {
+                    if (!MessageHelper.IsValidCommandSymbol(text[i]))
+                    {
+                        flag = false;
+                        break;
+                    }
+                    i--;
+                }
+            }
+            if (flag)
+            {
+                if (index == -1)
+                {
+                    return false;
+                }
+
+                searchText = text.Substring(index).TrimStart(c);
+            }
+
+            return flag;
+        }
+
         private void UpdateText()
         {
             Document.GetText(TextGetOptions.NoHidden, out string text);
@@ -774,7 +770,7 @@ namespace Unigram.Controls
                 reader.Parse();
 
                 var messageText = text.Replace("\r\n", "\n").Replace('\v', '\n').Replace('\r', '\n');
-                var entities = MessageHelper.GetEntities(ref messageText);
+                var entities = Utils.GetEntities(ref messageText);
                 if (entities == null)
                 {
                     entities = new List<TLMessageEntityBase>();
@@ -819,7 +815,7 @@ namespace Unigram.Controls
 
         #region Username
 
-        public static bool SearchByUsernames(string text, out string searchText)
+        public static bool SearchByUsername(string text, out string searchText)
         {
             searchText = string.Empty;
 
@@ -1011,6 +1007,49 @@ namespace Unigram.Controls
         {
             if (entities != null && entities.Count > 0)
             {
+                entities = new TLVector<TLMessageEntityBase>(entities);
+
+                var builder = new StringBuilder(text);
+                var addToOffset = 0;
+
+                foreach (var entity in entities.ToList())
+                {
+                    if (entity is TLMessageEntityCode)
+                    {
+                        builder.Insert(entity.Offset + entity.Length + addToOffset, "`");
+                        builder.Insert(entity.Offset + addToOffset, "`");
+                        addToOffset += 2;
+                        entities.Remove(entity);
+                    }
+                    else if (entity is TLMessageEntityPre)
+                    {
+                        builder.Insert(entity.Offset + entity.Length + addToOffset, "```");
+                        builder.Insert(entity.Offset + addToOffset, "```");
+                        addToOffset += 6;
+                        entities.Remove(entity);
+                    }
+                    else if (entity is TLMessageEntityBold)
+                    {
+                        builder.Insert(entity.Offset + entity.Length + addToOffset, "**");
+                        builder.Insert(entity.Offset + addToOffset, "**");
+                        addToOffset += 4;
+                        entities.Remove(entity);
+                    }
+                    else if (entity is TLMessageEntityItalic)
+                    {
+                        builder.Insert(entity.Offset + entity.Length + addToOffset, "__");
+                        builder.Insert(entity.Offset + addToOffset, "__");
+                        addToOffset += 4;
+                        entities.Remove(entity);
+                    }
+                    else
+                    {
+                        entity.Offset += addToOffset;
+                    }
+                }
+
+                text = builder.ToString();
+
                 var document = new RtfDocument(PaperSize.A4, PaperOrientation.Portrait, Lcid.English);
                 var segoe = document.CreateFont("Segoe UI");
                 var consolas = document.CreateFont("Consolas");
@@ -1027,38 +1066,39 @@ namespace Unigram.Controls
                     }
 
                     var type = entity.TypeId;
-                    if (type == TLType.MessageEntityBold)
-                    {
-                        paragraph.Text.Append(text.Substring(entity.Offset, entity.Length));
-                        paragraph.addCharFormat(entity.Offset, entity.Offset + entity.Length - 1).FontStyle.addStyle(FontStyleFlag.Bold);
-                    }
-                    else if (type == TLType.MessageEntityItalic)
-                    {
-                        paragraph.Text.Append(text.Substring(entity.Offset, entity.Length));
-                        paragraph.addCharFormat(entity.Offset, entity.Offset + entity.Length - 1).FontStyle.addStyle(FontStyleFlag.Italic);
-                    }
-                    else if (type == TLType.MessageEntityCode)
-                    {
-                        paragraph.Text.Append(text.Substring(entity.Offset, entity.Length));
-                        paragraph.addCharFormat(entity.Offset, entity.Offset + entity.Length - 1).Font = consolas;
-                    }
-                    else if (type == TLType.MessageEntityPre)
-                    {
-                        // TODO any additional
-                        paragraph.Text.Append(text.Substring(entity.Offset, entity.Length));
-                        paragraph.addCharFormat(entity.Offset, entity.Offset + entity.Length - 1).Font = consolas;
-                    }
-                    else if (type == TLType.MessageEntityUrl ||
-                                type == TLType.MessageEntityEmail ||
-                                type == TLType.MessageEntityMention ||
-                                type == TLType.MessageEntityHashtag ||
-                                type == TLType.MessageEntityBotCommand)
+                    //if (type == TLType.MessageEntityBold)
+                    //{
+                    //    paragraph.Text.Append(text.Substring(entity.Offset, entity.Length));
+                    //    paragraph.addCharFormat(entity.Offset, entity.Offset + entity.Length - 1).FontStyle.addStyle(FontStyleFlag.Bold);
+                    //}
+                    //else if (type == TLType.MessageEntityItalic)
+                    //{
+                    //    paragraph.Text.Append(text.Substring(entity.Offset, entity.Length));
+                    //    paragraph.addCharFormat(entity.Offset, entity.Offset + entity.Length - 1).FontStyle.addStyle(FontStyleFlag.Italic);
+                    //}
+                    //else if (type == TLType.MessageEntityCode)
+                    //{
+                    //    paragraph.Text.Append(text.Substring(entity.Offset, entity.Length));
+                    //    paragraph.addCharFormat(entity.Offset, entity.Offset + entity.Length - 1).Font = consolas;
+                    //}
+                    //else if (type == TLType.MessageEntityPre)
+                    //{
+                    //    // TODO any additional
+                    //    paragraph.Text.Append(text.Substring(entity.Offset, entity.Length));
+                    //    paragraph.addCharFormat(entity.Offset, entity.Offset + entity.Length - 1).Font = consolas;
+                    //}
+                    //else 
+                    if (type == TLType.MessageEntityUrl ||
+                             type == TLType.MessageEntityEmail ||
+                             type == TLType.MessageEntityMention ||
+                             type == TLType.MessageEntityHashtag ||
+                             type == TLType.MessageEntityBotCommand)
                     {
                         paragraph.Text.Append(text.Substring(entity.Offset, entity.Length));
                     }
                     else if (type == TLType.MessageEntityTextUrl ||
-                                type == TLType.MessageEntityMentionName ||
-                                type == TLType.InputMessageEntityMentionName)
+                             type == TLType.MessageEntityMentionName ||
+                             type == TLType.InputMessageEntityMentionName)
                     {
                         object data;
                         if (type == TLType.MessageEntityTextUrl)

@@ -22,6 +22,7 @@ using Unigram.ViewModels.Users;
 using Windows.UI.Xaml.Markup;
 using System.Linq;
 using Windows.UI.Xaml.Media;
+using Telegram.Api.Helpers;
 
 namespace Unigram.Views
 {
@@ -67,6 +68,11 @@ namespace Unigram.Views
             MasterDetail.NavigationService.Navigate(typeof(SettingsGeneralPage));
         }
 
+        private void Phone_Click(object sender, RoutedEventArgs e)
+        {
+            MasterDetail.NavigationService.Navigate(typeof(SettingsPhoneWelcomePage));
+        }
+
         private void Username_Click(object sender, RoutedEventArgs e)
         {
             MasterDetail.NavigationService.Navigate(typeof(SettingsUsernamePage));
@@ -75,6 +81,31 @@ namespace Unigram.Views
         public async void EditName_Click(object sender, RoutedEventArgs e)
         {
             await MasterDetail.NavigationService.NavigateModalAsync(typeof(EditYourNameView));
+        }
+
+        private async void About_Click(object sender, RoutedEventArgs e)
+        {
+            var full = ViewModel.Full as TLUserFull;
+            if (full == null)
+            {
+                return;
+            }
+
+            var dialog = new EditYourAboutView();
+            dialog.About = full.About;
+
+            var confirm = await dialog.ShowQueuedAsync();
+            if (confirm == ContentDialogResult.Primary)
+            {
+                var about = dialog.About;
+
+                var response = await ViewModel.ProtoService.UpdateProfileAsync(null, null, about);
+                if (response.IsSucceeded)
+                {
+                    ViewModel.Full.About = about;
+                    ViewModel.Full.RaisePropertyChanged(() => ViewModel.Full.About);
+                }
+            }
         }
 
         private void Privacy_Click(object sender, RoutedEventArgs e)
@@ -109,12 +140,11 @@ namespace Unigram.Views
 
         private async void Photo_Click(object sender, RoutedEventArgs e)
         {
-            ConnectedAnimationService.GetForCurrentView().PrepareToAnimate("FullScreenPicture", Photo);
-
             var user = ViewModel.Self;
-            if (user.HasPhoto && user.Photo is TLUserProfilePhoto photo)
+            var userFull = ViewModel.Full as TLUserFull;
+            if (userFull != null && userFull.ProfilePhoto is TLPhoto && user != null)
             {
-                var viewModel = new UserPhotosViewModel(user, ViewModel.ProtoService);
+                var viewModel = new UserPhotosViewModel(ViewModel.ProtoService, userFull, user);
                 await GalleryView.Current.ShowAsync(viewModel, () => Photo);
             }
         }
@@ -145,66 +175,75 @@ namespace Unigram.Views
 
         private async void Theme_Click(object sender, RoutedEventArgs e)
         {
+            if (Window.Current.CoreWindow.GetKeyState(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down))
+            {
+                var remove = await FileUtils.TryGetTempItemAsync("theme.xaml");
+                if (remove != null)
+                {
+                    await remove.DeleteAsync();
+
+                    Theme.Current.Update();
+                    App.RaiseThemeChanged();
+                }
+
+                return;
+            }
+
             var picker = new FileOpenPicker();
             picker.FileTypeFilter.Add(".xaml");
 
             var file = await picker.PickSingleFileAsync();
             if (file != null)
             {
-                var text = await FileIO.ReadTextAsync(file);
+                var result = await FileUtils.CreateTempFileAsync("theme.xaml");
+                await file.CopyAndReplaceAsync(result);
 
-                var dictionary = XamlReader.Load(text) as ResourceDictionary;
-                if (dictionary == null)
-                {
-                    return;
-                }
+                Theme.Current.Update();
+                App.RaiseThemeChanged();
 
-                var accent = App.Current.Resources.MergedDictionaries.FirstOrDefault(x => x.Source.AbsoluteUri.EndsWith("Accent.xaml"));
-                if (accent == null)
-                {
-                    return;
-                }
+                //var text = await FileIO.ReadTextAsync(file);
 
-                foreach (var theme in dictionary.ThemeDictionaries)
-                {
-                    var item = theme.Value as ResourceDictionary;
-                    if (accent.ThemeDictionaries.TryGetValue(theme.Key, out object value))
-                    {
-                        var pair = value as ResourceDictionary;
-                        if (pair == null)
-                        {
-                            continue;
-                        }
+                //var dictionary = XamlReader.Load(text) as ResourceDictionary;
+                //if (dictionary == null)
+                //{
+                //    return;
+                //}
 
-                        foreach (var key in item)
-                        {
-                            if (pair.ContainsKey(key.Key))
-                            {
-                                pair[key.Key] = key.Value;
-                            }
+                //var accent = App.Current.Resources.MergedDictionaries.FirstOrDefault(x => x.Source.AbsoluteUri.EndsWith("Accent.xaml"));
+                //if (accent == null)
+                //{
+                //    return;
+                //}
 
-                            //if (key.Value is SolidColorBrush brush && pair.TryGetValue(key.Key, out object original))
-                            //{
-                            //    var solidBrush = original as SolidColorBrush;
-                            //    if (solidBrush == null)
-                            //    {
-                            //        continue;
-                            //    }
+                //foreach (var theme in dictionary.ThemeDictionaries)
+                //{
+                //    var item = theme.Value as ResourceDictionary;
+                //    if (accent.ThemeDictionaries.TryGetValue(theme.Key, out object value))
+                //    {
+                //        var pair = value as ResourceDictionary;
+                //        if (pair == null)
+                //        {
+                //            continue;
+                //        }
 
-                            //    solidBrush.Color = brush.Color;
-                            //}
-                        }
-                    }
-                }
+                //        foreach (var key in item)
+                //        {
+                //            if (pair.ContainsKey(key.Key))
+                //            {
+                //                try
+                //                {
+                //                    pair[key.Key] = key.Value;
+                //                }
+                //                catch
+                //                {
+                //                    Debug.WriteLine("Theme: unable to apply " + key.Key);
+                //                }
+                //            }
+                //        }
+                //    }
+                //}
 
-                var frame = Window.Current.Content as Frame;
-                if (frame != null)
-                {
-                    var dark = (bool)App.Current.Resources["IsDarkTheme"];
-
-                    frame.RequestedTheme = dark ? ElementTheme.Light : ElementTheme.Dark;
-                    frame.RequestedTheme = ElementTheme.Default;
-                }
+                //App.RaiseThemeChanged();
             }
         }
     }

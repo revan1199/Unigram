@@ -22,6 +22,7 @@ using Template10.Services.ViewService;
 using Windows.UI.Xaml.Media.Animation;
 using Windows.UI.Xaml.Input;
 using Unigram.Core.Helpers;
+using Windows.System;
 
 namespace Unigram.Controls
 {
@@ -35,6 +36,7 @@ namespace Unigram.Controls
         private TaskCompletionSource<ContentDialogBaseResult> _callback;
         private ContentDialogBaseResult _result;
 
+        protected Border Container;
         protected Border BackgroundElement;
         private AppViewBackButtonVisibility BackButtonVisibility;
 
@@ -54,9 +56,10 @@ namespace Unigram.Controls
 
         private void OnVisibleBoundsChanged(ApplicationView sender, object args)
         {
-            if (/*BackgroundElement != null &&*/ sender.VisibleBounds != Window.Current.Bounds)
+            var bounds = Window.Current.Bounds;
+            if (/*BackgroundElement != null &&*/ sender.VisibleBounds != bounds)
             {
-                Margin = new Thickness(sender.VisibleBounds.X, sender.VisibleBounds.Y, Window.Current.Bounds.Width - sender.VisibleBounds.Right, Window.Current.Bounds.Height - sender.VisibleBounds.Bottom);
+                Margin = new Thickness(sender.VisibleBounds.X - bounds.Left, sender.VisibleBounds.Y - bounds.Top, bounds.Width - (sender.VisibleBounds.Right - bounds.Left), bounds.Height - (sender.VisibleBounds.Bottom - bounds.Top));
                 UpdateViewBase();
             }
             else
@@ -167,6 +170,7 @@ namespace Unigram.Controls
                     _popupHost = new Popup();
                     _popupHost.Child = this;
                     _popupHost.Loading += PopupHost_Loading;
+                    _popupHost.Loaded += PopupHostLoaded;
                     _popupHost.Opened += PopupHost_Opened;
                     _popupHost.Closed += PopupHost_Closed;
                     this.Unloaded += PopupHost_Unloaded;
@@ -198,6 +202,11 @@ namespace Unigram.Controls
             OnVisibleBoundsChanged(_applicationView, null);
         }
 
+        private void PopupHostLoaded(object sender, RoutedEventArgs e)
+        {
+            Focus(FocusState.Programmatic);
+        }
+
         private void PopupHost_Opened(object sender, object e)
         {
             MaskTitleAndStatusBar();
@@ -206,6 +215,7 @@ namespace Unigram.Controls
             //SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility = AppViewBackButtonVisibility.Visible;
             _applicationView.VisibleBoundsChanged += OnVisibleBoundsChanged;
             BootStrapper.BackRequested += OnBackRequested;
+            App.AcceleratorKeyActivated += Dispatcher_AcceleratorKeyActivated;
             //Window.Current.SizeChanged += OnSizeChanged;
 
             OnVisibleBoundsChanged(_applicationView, null);
@@ -220,12 +230,25 @@ namespace Unigram.Controls
             //SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility = BackButtonVisibility;
             _applicationView.VisibleBoundsChanged -= OnVisibleBoundsChanged;
             BootStrapper.BackRequested -= OnBackRequested;
+            App.AcceleratorKeyActivated -= Dispatcher_AcceleratorKeyActivated;
         }
 
         private void OnBackRequested(object sender, HandledEventArgs e)
         {
             BootStrapper.BackRequested -= OnBackRequested;
             OnBackRequestedOverride(sender, e);
+        }
+
+        private void Dispatcher_AcceleratorKeyActivated(CoreDispatcher sender, AcceleratorKeyEventArgs args)
+        {
+            if (args.VirtualKey == VirtualKey.Escape && !args.KeyStatus.IsKeyReleased)
+            {
+                App.AcceleratorKeyActivated -= Dispatcher_AcceleratorKeyActivated;
+
+                var e = new HandledEventArgs();
+                OnBackRequestedOverride(sender, e);
+                args.Handled = e.Handled;
+            }
         }
 
         protected virtual void OnBackRequestedOverride(object sender, HandledEventArgs e)
@@ -259,7 +282,21 @@ namespace Unigram.Controls
 
         protected override void OnApplyTemplate()
         {
+            Container = (Border)GetTemplateChild("Container");
             BackgroundElement = (Border)GetTemplateChild("BackgroundElement");
+
+            Container.Tapped += Outside_Tapped;
+            BackgroundElement.Tapped += Inside_Tapped;
+        }
+
+        private void Inside_Tapped(object sender, TappedRoutedEventArgs e)
+        {
+            e.Handled = true;
+        }
+
+        private void Outside_Tapped(object sender, TappedRoutedEventArgs e)
+        {
+            Hide();
         }
 
         private void OnSizeChanged(object sender, WindowSizeChangedEventArgs e)

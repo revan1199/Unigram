@@ -64,14 +64,10 @@ namespace Unigram
 
             // Files
             container.ContainerBuilder.RegisterType<DownloadFileManager>().As<IDownloadFileManager>().SingleInstance();
-            container.ContainerBuilder.RegisterType<DownloadAudioFileManager>().As<IDownloadAudioFileManager>().SingleInstance();
-            container.ContainerBuilder.RegisterType<DownloadVideoFileManager>().As<IDownloadVideoFileManager>().SingleInstance();
-            container.ContainerBuilder.RegisterType<DownloadDocumentFileManager>().As<IDownloadDocumentFileManager>().SingleInstance();
+            container.ContainerBuilder.Register((ctx) => new DownloadDocumentFileManager(ctx.Resolve<ITelegramEventAggregator>(), ctx.Resolve<IMTProtoService>(), ctx.Resolve<IStatsService>(), DataType.Audios)).As<IDownloadAudioFileManager>().SingleInstance();
+            container.ContainerBuilder.Register((ctx) => new DownloadDocumentFileManager(ctx.Resolve<ITelegramEventAggregator>(), ctx.Resolve<IMTProtoService>(), ctx.Resolve<IStatsService>(), DataType.Videos)).As<IDownloadVideoFileManager>().SingleInstance();
+            container.ContainerBuilder.Register((ctx) => new DownloadDocumentFileManager(ctx.Resolve<ITelegramEventAggregator>(), ctx.Resolve<IMTProtoService>(), ctx.Resolve<IStatsService>(), DataType.Files)).As<IDownloadDocumentFileManager>().SingleInstance();
             container.ContainerBuilder.RegisterType<DownloadWebFileManager>().As<IDownloadWebFileManager>().SingleInstance();
-            //container.ContainerBuilder.RegisterType<UploadManager>().As<IUploadFileManager>().SingleInstance();
-            //container.ContainerBuilder.RegisterType<UploadManager>().As<IUploadAudioManager>().SingleInstance();
-            //container.ContainerBuilder.RegisterType<UploadManager>().As<IUploadDocumentManager>().SingleInstance();
-            //container.ContainerBuilder.RegisterType<UploadManager>().As<IUploadVideoManager>().SingleInstance();
             container.ContainerBuilder.Register((ctx) => new UploadManager(ctx.Resolve<ITelegramEventAggregator>(), ctx.Resolve<IMTProtoService>(), ctx.Resolve<IStatsService>(), DataType.Photos)).As<IUploadFileManager>().SingleInstance();
             container.ContainerBuilder.Register((ctx) => new UploadManager(ctx.Resolve<ITelegramEventAggregator>(), ctx.Resolve<IMTProtoService>(), ctx.Resolve<IStatsService>(), DataType.Audios)).As<IUploadAudioManager>().SingleInstance();
             container.ContainerBuilder.Register((ctx) => new UploadManager(ctx.Resolve<ITelegramEventAggregator>(), ctx.Resolve<IMTProtoService>(), ctx.Resolve<IStatsService>(), DataType.Videos)).As<IUploadVideoManager>().SingleInstance();
@@ -113,11 +109,17 @@ namespace Unigram
             container.ContainerBuilder.RegisterType<SignInPasswordViewModel>();
             container.ContainerBuilder.RegisterType<MainViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<ShareViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<ForwardViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<DialogSendLocationViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<DialogsViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<DialogViewModel>();
             container.ContainerBuilder.RegisterType<DialogStickersViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<UserDetailsViewModel>();
+            container.ContainerBuilder.RegisterType<ChannelManageViewModel>();
+            container.ContainerBuilder.RegisterType<ChannelAdminLogViewModel>();
+            container.ContainerBuilder.RegisterType<ChannelAdminLogFilterViewModel>();
+            container.ContainerBuilder.RegisterType<ChannelAdminRightsViewModel>();
+            container.ContainerBuilder.RegisterType<ChannelBannedRightsViewModel>();
             container.ContainerBuilder.RegisterType<UserCommonChatsViewModel>();
             container.ContainerBuilder.RegisterType<ChatDetailsViewModel>();// .SingleInstance();
             container.ContainerBuilder.RegisterType<ChatInviteViewModel>();// .SingleInstance();
@@ -126,6 +128,7 @@ namespace Unigram
             container.ContainerBuilder.RegisterType<ChannelEditViewModel>();// .SingleInstance();
             container.ContainerBuilder.RegisterType<ChannelEditTypeViewModel>();// .SingleInstance();
             container.ContainerBuilder.RegisterType<ChannelAdminsViewModel>();// .SingleInstance();
+            container.ContainerBuilder.RegisterType<ChannelBannedViewModel>();// .SingleInstance();
             container.ContainerBuilder.RegisterType<ChannelKickedViewModel>();// .SingleInstance();
             container.ContainerBuilder.RegisterType<ChannelParticipantsViewModel>();// .SingleInstance();
             container.ContainerBuilder.RegisterType<DialogSharedMediaViewModel>(); // .SingleInstance();
@@ -137,6 +140,8 @@ namespace Unigram
             container.ContainerBuilder.RegisterType<InstantViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<SettingsViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<SettingsGeneralViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<SettingsPhoneViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<SettingsPhoneSentCodeViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<SettingsStorageViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<SettingsStatsViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<FeaturedStickersViewModel>().SingleInstance();
@@ -151,6 +156,7 @@ namespace Unigram
             container.ContainerBuilder.RegisterType<SettingsPrivacyStatusTimestampViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<SettingsPrivacyPhoneCallViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<SettingsPrivacyChatInviteViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<SettingsSecurityChangePasswordViewModel>(); //.SingleInstance();
             container.ContainerBuilder.RegisterType<SettingsAccountsViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<SettingsStickersViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<SettingsStickersFeaturedViewModel>().SingleInstance();
@@ -173,23 +179,28 @@ namespace Unigram
             Task.Run(() => LoadStateAndUpdate());
         }
 
-        private void InitializeLayer()
+        private void DeleteIfExists(string path)
         {
-            void deleteIfExists(string path)
+            try
             {
                 if (File.Exists(FileUtils.GetFileName(path)))
                 {
                     File.Delete(FileUtils.GetFileName(path));
                 }
             }
+            catch { }
+        }
 
-            if (SettingsHelper.SupportedLayer < 66)
+        private void InitializeLayer()
+        {
+            if (SettingsHelper.SupportedLayer < 69 || !SettingsHelper.IsAuthorized)
             {
-                deleteIfExists("database.sqlite");
-                SettingsHelper.SupportedLayer = 66;
+                DeleteIfExists("database.sqlite");
                 ApplicationSettings.Current.AddOrUpdateValue("lastGifLoadTime", 0L);
                 ApplicationSettings.Current.AddOrUpdateValue("lastStickersLoadTime", 0L);
             }
+
+            SettingsHelper.SupportedLayer = Telegram.Api.Constants.SupportedLayer;
 
             //if (SettingsHelper.SupportedLayer != Constants.SupportedLayer ||
             //    SettingsHelper.DatabaseVersion != Constants.DatabaseVersion)
@@ -197,22 +208,22 @@ namespace Unigram
                 //SettingsHelper.SupportedLayer = Constants.SupportedLayer;
                 //SettingsHelper.DatabaseVersion = Constants.DatabaseVersion;
 
-                deleteIfExists("action_queue.dat");
-                deleteIfExists("action_queue.dat.temp");
-                deleteIfExists("chats.dat");
-                deleteIfExists("chats.dat.temp");
-                deleteIfExists("dialogs.dat");
-                deleteIfExists("dialogs.dat.temp");
-                deleteIfExists("state.dat");
-                deleteIfExists("state.dat.temp");
-                deleteIfExists("users.dat");
-                deleteIfExists("users.dat.temp");
+                DeleteIfExists("action_queue.dat");
+                DeleteIfExists("action_queue.dat.temp");
+                DeleteIfExists("chats.dat");
+                DeleteIfExists("chats.dat.temp");
+                DeleteIfExists("dialogs.dat");
+                DeleteIfExists("dialogs.dat.temp");
+                DeleteIfExists("state.dat");
+                DeleteIfExists("state.dat.temp");
+                DeleteIfExists("users.dat");
+                DeleteIfExists("users.dat.temp");
 
-                deleteIfExists("temp_chats.dat");
-                deleteIfExists("temp_dialogs.dat");
-                deleteIfExists("temp_difference.dat");
-                deleteIfExists("temp_state.dat");
-                deleteIfExists("temp_users.dat");
+                DeleteIfExists("temp_chats.dat");
+                DeleteIfExists("temp_dialogs.dat");
+                DeleteIfExists("temp_difference.dat");
+                DeleteIfExists("temp_state.dat");
+                DeleteIfExists("temp_users.dat");
             }
         }
 
@@ -282,7 +293,7 @@ namespace Unigram
             var protoService = UnigramContainer.Current.ResolveType<IMTProtoService>();
             if (protoService != null)
             {
-                protoService.SetMessageOnTime(25, "Connecting...");
+                protoService.SetMessageOnTime(25, SettingsHelper.IsProxyEnabled ? "Connecting to proxy..." : "Connecting...");
             }
         }
 
@@ -297,8 +308,17 @@ namespace Unigram
 
         private void OnAuthorizationRequired(object sender, AuthorizationRequiredEventArgs e)
         {
+            DeleteIfExists("database.sqlite");
+
             SettingsHelper.IsAuthorized = false;
-            Debug.WriteLine("!!!UNAUTHORIZED!!!");
+            SettingsHelper.UserId = 0;
+            SettingsHelper.ChannelUri = null;
+            MTProtoService.Current.CurrentUserId = 0;
+
+            ApplicationSettings.Current.AddOrUpdateValue("lastGifLoadTime", 0L);
+            ApplicationSettings.Current.AddOrUpdateValue("lastStickersLoadTime", 0L);
+
+            Debug.WriteLine("!!! UNAUTHORIZED !!!");
 
             Execute.BeginOnUIThread(() =>
             {
@@ -306,6 +326,12 @@ namespace Unigram
                 if (type.Name.StartsWith("SignIn") || type.Name.StartsWith("SignUp")) { }
                 else
                 {
+                    try
+                    {
+                        UnigramContainer.Current.ResolveType<MainViewModel>().Refresh = true;
+                    }
+                    catch { }
+
                     App.Current.NavigationService.Navigate(typeof(SignInWelcomePage));
                     App.Current.NavigationService.Frame.BackStack.Clear();
                 }

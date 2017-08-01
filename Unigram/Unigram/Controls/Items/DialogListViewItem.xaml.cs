@@ -68,7 +68,7 @@ namespace Unigram.Controls.Items
                 FromLabel.Text = UpdateFromLabel(ViewModel);
                 BriefLabel.Text = UpdateBriefLabel(ViewModel);
                 UpdateTimeLabel();
-                UpdateStateIcon();
+                //UpdateStateIcon();
                 UpdateUnreadCount();
                 UpdatePicture();
                 UpdateChannelType();
@@ -82,7 +82,7 @@ namespace Unigram.Controls.Items
                 FromLabel.Text = UpdateFromLabel(ViewModel);
                 BriefLabel.Text = UpdateBriefLabel(ViewModel);
                 UpdateTimeLabel();
-                UpdateStateIcon();
+                //UpdateStateIcon();
                 UpdateUnreadCount();
             }
             else if (e.PropertyName == "TopMessageItem")
@@ -90,7 +90,7 @@ namespace Unigram.Controls.Items
                 FromLabel.Text = UpdateFromLabel(ViewModel);
                 BriefLabel.Text = UpdateBriefLabel(ViewModel);
                 UpdateTimeLabel();
-                UpdateStateIcon();
+                //UpdateStateIcon();
                 UpdateUnreadCount();
             }
             else if (e.PropertyName == "UnreadCount")
@@ -234,6 +234,10 @@ namespace Unigram.Controls.Items
                                 {
                                     result = $"{user.Username.Trim()}: ";
                                 }
+                                else if (user.IsDeleted)
+                                {
+                                    return $"Deleted Account: ";
+                                }
                                 else
                                 {
                                     result = $"{user.Id}: ";
@@ -256,6 +260,11 @@ namespace Unigram.Controls.Items
                     }
                     else if (message.Media is TLMessageMediaDocument documentMedia)
                     {
+                        if (documentMedia.HasTTLSeconds && (documentMedia.Document is TLDocumentEmpty || !documentMedia.HasDocument))
+                        {
+                            return result + "Video has expired";
+                        }
+
                         var caption = string.Empty;
                         if (!string.IsNullOrEmpty(documentMedia.Caption))
                         {
@@ -300,15 +309,15 @@ namespace Unigram.Controls.Items
                                 {
                                     if (audioAttribute.HasPerformer && audioAttribute.HasTitle)
                                     {
-                                        return $"{result}{audioAttribute.Performer} - {audioAttribute.Title}";
+                                        return $"{result}{audioAttribute.Performer} - {audioAttribute.Title}" + caption;
                                     }
                                     else if (audioAttribute.HasPerformer && !audioAttribute.HasTitle)
                                     {
-                                        return $"{result}{audioAttribute.Performer} - Unknown Track";
+                                        return $"{result}{audioAttribute.Performer} - Unknown Track" + caption;
                                     }
                                     else if (audioAttribute.HasTitle && !audioAttribute.HasPerformer)
                                     {
-                                        return $"{result}{audioAttribute.Title}";
+                                        return $"{result}{audioAttribute.Title}" + caption;
                                     }
                                 }
                             }
@@ -320,7 +329,7 @@ namespace Unigram.Controls.Items
                             if (attribute != null)
                             {
                                 //return $"{text}{attribute.Alt} ({Resources.Sticker.ToLower()})";
-                                return result + attribute.FileName + caption;
+                                return result + document.FileName + caption;
                             }
                         }
 
@@ -336,7 +345,7 @@ namespace Unigram.Controls.Items
                     }
                     else if (message.Media is TLMessageMediaGeo)
                     {
-                        return result + "GeoPoint";
+                        return result + "Location";
                     }
                     else if (message.Media is TLMessageMediaVenue)
                     {
@@ -344,6 +353,11 @@ namespace Unigram.Controls.Items
                     }
                     else if (message.Media is TLMessageMediaPhoto photoMedia)
                     {
+                        if (photoMedia.HasTTLSeconds && (photoMedia.Photo is TLPhotoEmpty || !photoMedia.HasPhoto))
+                        {
+                            return result + "Photo has expired";
+                        }
+
                         if (string.IsNullOrEmpty(photoMedia.Caption))
                         {
                             return result + "Photo";
@@ -371,17 +385,22 @@ namespace Unigram.Controls.Items
         private bool IsOut(TLDialog dialog)
         {
             var topMessage = dialog.TopMessageItem as TLMessage;
-            if (topMessage != null /*&& topMessage.ShowFrom*/)
+            //if (topMessage != null /*&& topMessage.ShowFrom*/)
+            //{
+            //    var from = topMessage.FromId;
+            //    if (from != null)
+            //    {
+            //        int currentUserId = MTProtoService.Current.CurrentUserId;
+            //        if (currentUserId == from.Value)
+            //        {
+            //            return true;
+            //        }
+            //    }
+            //}
+
+            if (topMessage != null && topMessage.From is TLUser from && from.IsSelf)
             {
-                var from = topMessage.FromId;
-                if (from != null)
-                {
-                    int currentUserId = MTProtoService.Current.CurrentUserId;
-                    if (currentUserId == from.Value)
-                    {
-                        return true;
-                    }
-                }
+                return true;
             }
 
             return false;
@@ -425,6 +444,32 @@ namespace Unigram.Controls.Items
             {
                 StateIcon.Visibility = Visibility.Collapsed;
             }
+        }
+
+        private string UpdateStateIcon(TLDraftMessageBase draft, TLMessageBase message, TLMessageState state)
+        {
+            if (draft is TLDraftMessage)
+            {
+                return string.Empty;
+            }
+
+            if (message is TLMessage topMessage)
+            {
+                if (topMessage.IsOut && IsOut(ViewModel))
+                {
+                    switch (state)
+                    {
+                        case TLMessageState.Sending:
+                            return "\uE600";
+                        case TLMessageState.Confirmed:
+                            return "\uE602";
+                        case TLMessageState.Read:
+                            return "\uE601";
+                    }
+                }
+            }
+
+            return string.Empty;
         }
 
         private void UpdateTimeLabel()

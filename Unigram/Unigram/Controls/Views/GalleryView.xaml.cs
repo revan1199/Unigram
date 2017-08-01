@@ -239,20 +239,17 @@ namespace Unigram.Controls.Views
                 var animation = ConnectedAnimationService.GetForCurrentView().PrepareToAnimate("FullScreenPicture", Surface);
                 if (animation != null && _closing != null)
                 {
-                    animation.TryStart(_closing());
-
-                    DataContext = null;
-                    Bindings.StopTracking();
-
-                    Hide();
+                    var element = _closing();
+                    if (element.ActualWidth > 0)
+                    {
+                        animation.TryStart(element);
+                    }
                 }
-                else
-                {
-                    DataContext = null;
-                    Bindings.StopTracking();
 
-                    Hide();
-                }
+                DataContext = null;
+                Bindings.StopTracking();
+
+                Hide();
             }
             else
             {
@@ -306,6 +303,10 @@ namespace Unigram.Controls.Views
         {
             var border = sender as TransferButton;
             var item = border.DataContext as GalleryItem;
+            if (item == null)
+            {
+                return;
+            }
 
             if (item.IsVideo)
             {

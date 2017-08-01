@@ -23,6 +23,14 @@ namespace Telegram.Api.TL
 
         public TLMessageBase Reply { get; set; }
 
+        public TLMessageBase SelfBase
+        {
+            get
+            {
+                return this;
+            }
+        }
+
         //public virtual ReplyInfo ReplyInfo
         //{
         //    get { return null; }
@@ -64,6 +72,25 @@ namespace Telegram.Api.TL
             Id = message.Id;
             State = message.State;
         }
+
+        #region Service
+
+        public bool IsService()
+        {
+            var message = this as TLMessage;
+            if (message != null && message.Media is TLMessageMediaPhoto photoMedia && photoMedia.HasTTLSeconds && (photoMedia.Photo is TLPhotoEmpty || !photoMedia.HasPhoto))
+            {
+                return true;
+            }
+            else if (message != null && message.Media is TLMessageMediaDocument documentMedia && documentMedia.HasTTLSeconds && (documentMedia.Document is TLDocumentEmpty || !documentMedia.HasDocument))
+            {
+                return true;
+            }
+
+            return this is TLMessageService;
+        }
+
+        #endregion
 
         public virtual bool ShowFrom
         {
@@ -236,8 +263,9 @@ namespace Telegram.Api.TL
 
     public partial class TLMessage
     {
+
         #region Game
-        
+
         public bool IsGame()
         {
             return Media is TLMessageMediaGame;
@@ -245,7 +273,7 @@ namespace Telegram.Api.TL
 
         #endregion
 
-        #region IsPhoto
+        #region Photo
 
         public bool IsPhoto()
         {
@@ -327,8 +355,9 @@ namespace Telegram.Api.TL
 
         public bool IsVideo()
         {
+            // TODO: 24/07/2017, warning: || documentMedia.HasTTLSeconds
             var documentMedia = Media as TLMessageMediaDocument;
-            return documentMedia != null && IsVideo(documentMedia.Document);
+            return documentMedia != null && (IsVideo(documentMedia.Document) || documentMedia.HasTTLSeconds);
         }
 
         public static bool IsVideo(TLDocumentBase documentBase)

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -13,6 +15,7 @@ using Unigram.Common;
 using Unigram.Converters;
 using Unigram.Services;
 using Windows.System.Profile;
+using Windows.UI.Notifications;
 
 namespace Unigram.ViewModels
 {
@@ -23,7 +26,10 @@ namespace Unigram.ViewModels
         IHandle<TLUpdateEditMessage>,
         IHandle<TLUpdateUserStatus>,
         IHandle<TLUpdateDraftMessage>,
+        IHandle<TLUpdateContactLink>,
+        IHandle<TLUpdateChannel>,
         IHandle<MessagesRemovedEventArgs>,
+        IHandle<MessageExpiredEventArgs>,
         IHandle<DialogRemovedEventArgs>,
         IHandle<UpdateCompletedEventArgs>,
         IHandle<ChannelUpdateCompletedEventArgs>,
@@ -33,6 +39,11 @@ namespace Unigram.ViewModels
         {
             if (message.Equals("Window_Activated"))
             {
+                if (!IsActive || !App.IsActive || !App.IsVisible)
+                {
+                    return;
+                }
+
                 var participant = _with;
                 var dialog = _currentDialog;
                 if (dialog != null && Messages.Count > 0)
@@ -48,15 +59,42 @@ namespace Unigram.ViewModels
                     }
 
                     var readPeer = With as ITLReadMaxId;
-                    readPeer.ReadInboxMaxId = dialog.TopMessage;
+                    if (readPeer != null)
+                    {
+                        readPeer.ReadInboxMaxId = dialog.TopMessage;
+                    }
+
                     dialog.ReadInboxMaxId = dialog.TopMessage;
                     dialog.UnreadCount = dialog.UnreadCount - unread;
                     dialog.RaisePropertyChanged(() => dialog.UnreadCount);
+
+                    RemoveNotifications();
                 }
             }
             else if (message.Equals("Window_Deactivated"))
             {
-                SaveDraft();
+                if (Dispatcher != null)
+                {
+                    Dispatcher.Dispatch(SaveDraft);
+                }
+            }
+        }
+
+        public void Handle(TLUpdateContactLink update)
+        {
+            if (With is TLUser user && user.Id == update.UserId)
+            {
+                Execute.BeginOnUIThread(() =>
+                {
+                    IsShareContactAvailable = user.HasAccessHash && !user.HasPhone && !user.IsSelf && !user.IsContact && !user.IsMutualContact;
+                    IsAddContactAvailable = user.HasAccessHash && user.HasPhone && !user.IsSelf && !user.IsContact && !user.IsMutualContact;
+
+                    RaisePropertyChanged(() => With);
+
+                    //this.Subtitle = this.GetSubtitle();
+                    //base.NotifyOfPropertyChange<TLObject>(() => this.With);
+                    //this.ChangeUserAction();
+                });
             }
         }
 
@@ -108,6 +146,8 @@ namespace Unigram.ViewModels
             Execute.BeginOnUIThread(async () =>
             {
                 Messages.Clear();
+                IsFirstSliceLoaded = false;
+                IsLastSliceLoaded = false;
 
                 var maxId = _currentDialog?.UnreadCount > 0 ? _currentDialog.ReadInboxMaxId : int.MaxValue;
                 var offset = _currentDialog?.UnreadCount > 0 && maxId > 0 ? -16 : 0;
@@ -329,6 +369,7 @@ namespace Unigram.ViewModels
                     message.RaisePropertyChanged(() => message.Media);
                     message.RaisePropertyChanged(() => message.ReplyMarkup);
                     message.RaisePropertyChanged(() => message.Self);
+                    message.RaisePropertyChanged(() => message.SelfBase);
                 });
             }
         }
@@ -380,6 +421,42 @@ namespace Unigram.ViewModels
                     message.RaisePropertyChanged(() => message.Media);
                     message.RaisePropertyChanged(() => message.ReplyMarkup);
                     message.RaisePropertyChanged(() => message.Self);
+                    message.RaisePropertyChanged(() => message.SelfBase);
+                });
+            }
+        }
+
+        public void Handle(MessageExpiredEventArgs update)
+        {
+            var message = update.Message as TLMessage;
+            if (message == null)
+            {
+                return;
+            }
+
+            var flag = false;
+
+            var userBase = With as TLUserBase;
+            var chatBase = With as TLChatBase;
+            if (userBase != null && message.ToId is TLPeerUser && !message.IsOut && userBase.Id == message.FromId.Value)
+            {
+                flag = true;
+            }
+            else if (userBase != null && message.ToId is TLPeerUser && message.IsOut && userBase.Id == message.ToId.Id)
+            {
+                flag = true;
+            }
+            else if (chatBase != null && message.ToId is TLPeerChat && chatBase.Id == message.ToId.Id)
+            {
+                flag = true;
+            }
+
+            if (flag)
+            {
+                Execute.BeginOnUIThread(() =>
+                {
+                    var index = Messages.IndexOf(message);
+                    Messages.RaiseCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Move, message, index, index));
                 });
             }
         }
@@ -397,11 +474,11 @@ namespace Unigram.ViewModels
         {
             if (messageCommon == null) return;
 
-            //if (!this._isFirstSliceLoaded)
-            //{
-            //    Execute.ShowDebugMessage("DialogDetailsViewModel.Handle(TLMessageCommon) _isFirstSliceLoaded=false");
-            //    return;
-            //}
+            if (!IsFirstSliceLoaded)
+            {
+                Execute.ShowDebugMessage("DialogViewModel.Handle(TLMessageCommonBase) IsFirstSliceLoaded=false");
+                return;
+            }
 
             if (messageCommon is TLMessage message)
             {
@@ -500,7 +577,7 @@ namespace Unigram.ViewModels
 
             Execute.BeginOnUIThread(() =>
             {
-                var index = TLDialog.InsertMessageInOrder(Messages, messageCommon);
+                var index = InsertMessageInOrder(Messages, messageCommon);
                 if (index != -1)
                 {
                     var message = messageCommon as TLMessage;
@@ -525,6 +602,49 @@ namespace Unigram.ViewModels
                 }
             });
         }
+
+        public static int InsertMessageInOrder(IList<TLMessageBase> messages, TLMessageBase message)
+        {
+            var position = -1;
+
+            if (messages.Count == 0)
+            {
+                position = 0;
+            }
+
+            for (var i = messages.Count - 1; i >= 0; i--)
+            {
+                if (messages[i].Id == 0)
+                {
+                    if (messages[i].Date < message.Date)
+                    {
+                        position = i + 1;
+                        break;
+                    }
+
+                    continue;
+                }
+
+                if (messages[i].Id == message.Id)
+                {
+                    position = -1;
+                    break;
+                }
+                if (messages[i].Id < message.Id)
+                {
+                    position = i + 1;
+                    break;
+                }
+            }
+
+            if (position != -1)
+            {
+                messages.Insert(position, message);
+            }
+
+            return position;
+        }
+
 
 #if DEBUG
         [DllImport("user32.dll")]
@@ -588,6 +708,8 @@ namespace Unigram.ViewModels
                     ProtoService.ReadHistoryAsync(Peer, messageCommon.Id, 0);
                 }
                 //});
+
+                RemoveNotifications();
             }
         }
 
@@ -622,6 +744,22 @@ namespace Unigram.ViewModels
 
                 CacheService.Commit();
             });
+        }
+
+        public void Handle(TLUpdateChannel update)
+        {
+            if (With is TLChannel channel && channel.Id == update.ChannelId)
+            {
+                RaisePropertyChanged(() => With);
+                RaisePropertyChanged(() => Full);
+                RaisePropertyChanged(() => WithChannel);
+                RaisePropertyChanged(() => FullChannel);
+
+                if (channel.HasBannedRights && channel.BannedRights.IsSendMessages)
+                {
+                    Execute.BeginOnUIThread(() => SetText(null));
+                }
+            }
         }
     }
 }

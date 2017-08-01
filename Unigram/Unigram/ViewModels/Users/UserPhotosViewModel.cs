@@ -25,11 +25,16 @@ namespace Unigram.ViewModels.Users
     {
         private readonly DisposableMutex _loadMoreLock = new DisposableMutex();
 
-        public UserPhotosViewModel(TLUser user, IMTProtoService protoService)
+        public UserPhotosViewModel(IMTProtoService protoService, TLUserFull userFull, TLUser user)
             : base(protoService, null, null)
         {
-            Items = new MvxObservableCollection<GalleryItem>();
-            Initialize(user);
+            //Items = new MvxObservableCollection<GalleryItem>();
+            //Initialize(user);
+
+            Items = new MvxObservableCollection<GalleryItem> { new GalleryPhotoItem(userFull.ProfilePhoto as TLPhoto, user) };
+            SelectedItem = Items[0];
+            FirstItem = Items[0];
+            //Initialize();
         }
 
         private async void Initialize(TLUser user)
@@ -128,87 +133,6 @@ namespace Unigram.ViewModels.Users
             {
                 Set(ref _user, value);
             }
-        }
-    }
-
-    public class GalleryPhotoItem : GalleryItem
-    {
-        private readonly TLPhoto _photo;
-        private readonly ITLDialogWith _from;
-        private readonly string _caption;
-
-        public GalleryPhotoItem(TLPhoto photo, ITLDialogWith from)
-        {
-            _photo = photo;
-            _from = from;
-        }
-
-        public GalleryPhotoItem(TLPhoto photo, string caption)
-        {
-            _photo = photo;
-            _caption = caption;
-        }
-
-        public TLPhoto Photo => _photo;
-
-        public override ITLTransferable Source => _photo;
-
-        public override string Caption => _caption;
-
-        public override ITLDialogWith From => _from;
-
-        public override int Date => _photo.Date;
-
-        public override bool HasStickers => _photo.IsHasStickers;
-
-        public override TLInputStickeredMediaBase ToInputStickeredMedia()
-        {
-            return new TLInputStickeredMediaPhoto { Id = _photo.ToInputPhoto() };
-        }
-    }
-
-    public class GalleryDocumentItem : GalleryItem
-    {
-        private readonly TLDocument _document;
-        private readonly ITLDialogWith _from;
-        private readonly string _caption;
-
-        public GalleryDocumentItem(TLDocument document, ITLDialogWith from)
-        {
-            _document = document;
-            _from = from;
-        }
-
-        public GalleryDocumentItem(TLDocument document, string caption)
-        {
-            _document = document;
-            _caption = caption;
-        }
-
-        public TLDocument Document => _document;
-
-        public override ITLTransferable Source => _document;
-
-        public override string Caption => _caption;
-
-        public override ITLDialogWith From => _from;
-
-        public override int Date => _document.Date;
-
-        public override bool IsVideo => TLMessage.IsVideo(_document) || TLMessage.IsGif(_document) || TLMessage.IsRoundVideo(_document);
-
-        public override bool IsLoop => TLMessage.IsGif(_document);
-
-        public override bool HasStickers => _document.Attributes.Any(x => x is TLDocumentAttributeHasStickers);
-
-        public override TLInputStickeredMediaBase ToInputStickeredMedia()
-        {
-            return new TLInputStickeredMediaDocument { Id = _document.ToInputDocument() };
-        }
-
-        public override Uri GetVideoSource()
-        {
-            return FileUtils.GetTempFileUri(_document.GetFileName());
         }
     }
 }
