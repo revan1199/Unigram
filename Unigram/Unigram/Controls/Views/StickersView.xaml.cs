@@ -28,6 +28,9 @@ namespace Unigram.Controls.Views
     {
         public DialogViewModel ViewModel => DataContext as DialogViewModel;
 
+        public ItemClickEventHandler StickerClick { get; set; }
+        public ItemClickEventHandler GifClick { get; set; }
+
         public StickersView()
         {
             InitializeComponent();
@@ -35,7 +38,7 @@ namespace Unigram.Controls.Views
 
         private void Gifs_ItemClick(object sender, ItemClickEventArgs e)
         {
-            ViewModel.SendGifCommand.Execute(e.ClickedItem);
+            GifClick?.Invoke(sender, e);
 
             if (Window.Current.Bounds.Width >= 500)
             {
@@ -45,7 +48,7 @@ namespace Unigram.Controls.Views
 
         private void Stickers_ItemClick(object sender, ItemClickEventArgs e)
         {
-            ViewModel.SendStickerCommand.Execute(e.ClickedItem);
+            StickerClick?.Invoke(sender, e);
 
             if (Window.Current.Bounds.Width >= 500)
             {

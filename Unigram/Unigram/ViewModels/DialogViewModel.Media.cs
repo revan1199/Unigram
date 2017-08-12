@@ -15,12 +15,14 @@ using Unigram.Core.Helpers;
 using Unigram.Core.Models;
 using Unigram.Services;
 using Unigram.Views;
+using Windows.ApplicationModel.Contacts;
 using Windows.Media.Effects;
 using Windows.Media.MediaProperties;
 using Windows.Media.Transcoding;
 using Windows.Storage;
 using Windows.Storage.FileProperties;
 using Windows.Storage.Pickers;
+using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 
 namespace Unigram.ViewModels
@@ -505,8 +507,11 @@ namespace Unigram.ViewModels
 
             if (storages != null && storages.Count > 0)
             {
-                var dialog = new SendPhotosView { Items = storages, SelectedItem = storages[0], IsTTLEnabled = _peer is TLInputPeerUser };
+                var dialog = new SendPhotosView { ViewModel = this, Items = storages, SelectedItem = storages[0], IsTTLEnabled = _peer is TLInputPeerUser };
                 var dialogResult = await dialog.ShowAsync();
+
+                TextField.FocusMaybe(FocusState.Keyboard);
+
                 if (dialogResult == ContentDialogBaseResult.OK)
                 {
                     foreach (var storage in dialog.Items)
@@ -531,8 +536,11 @@ namespace Unigram.ViewModels
 
             if (storages != null && storages.Count > 0)
             {
-                var dialog = new SendPhotosView { Items = storages, SelectedItem = storages[0], IsTTLEnabled = _peer is TLInputPeerUser };
+                var dialog = new SendPhotosView { ViewModel = this, Items = storages, SelectedItem = storages[0], IsTTLEnabled = _peer is TLInputPeerUser };
                 var dialogResult = await dialog.ShowAsync();
+
+                TextField.FocusMaybe(FocusState.Keyboard);
+
                 if (dialogResult == ContentDialogBaseResult.OK)
                 {
                     foreach (var storage in dialog.Items)
@@ -842,6 +850,62 @@ namespace Unigram.ViewModels
                     var result = await ProtoService.SendMediaAsync(Peer, inputMedia, message);
                 }
             });
+        }
+
+        public RelayCommand SendContactCommand => new RelayCommand(SendContactExecute);
+        private async void SendContactExecute()
+        {
+            var picker = new ContactPicker();
+            picker.SelectionMode = ContactSelectionMode.Fields;
+            picker.DesiredFieldsWithContactFieldType.Add(ContactFieldType.PhoneNumber);
+
+            var contact = await picker.PickContactAsync();
+            if (contact != null)
+            {
+                TLUser user = null;
+
+                var annotationStore = await ContactManager.RequestAnnotationStoreAsync(ContactAnnotationStoreAccessType.AppAnnotationsReadWrite);
+                var store = await ContactManager.RequestStoreAsync(ContactStoreAccessType.AppContactsReadWrite);
+                if (store != null && annotationStore != null)
+                {
+                    var full = await store.GetContactAsync(contact.Id);
+                    if (full != null)
+                    {
+                        var annotations = await annotationStore.FindAnnotationsForContactAsync(full);
+
+                        var first = annotations.FirstOrDefault();
+                        if (first != null)
+                        {
+                            var remote = first.RemoteId;
+                            if (int.TryParse(remote.Substring(1), out int userId))
+                            {
+                                user = CacheService.GetUser(userId) as TLUser;
+                            }
+                        }
+
+                        //contact = full;
+                    }
+                }
+
+                if (user == null)
+                {
+                    var phone = contact.Phones.FirstOrDefault();
+                    if (phone == null)
+                    {
+                        return;
+                    }
+
+                    user = new TLUser();
+                    user.FirstName = contact.FirstName;
+                    user.LastName = contact.LastName;
+                    user.Phone = phone.Number;
+                }
+
+                if (user != null)
+                {
+                    await SendContactAsync(user);
+                }
+            }
         }
 
         public Task<bool> SendContactAsync(TLUser user)
