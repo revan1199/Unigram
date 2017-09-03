@@ -24,6 +24,20 @@ namespace Telegram.Api.Services
     public partial class MTProtoService
     {
         [DebuggerStepThrough]
+        public Task<MTProtoResponse<TLMessagesMessagesBase>> GetUnreadMentionsAsync(TLInputPeerBase inputPeer, int offsetId, int addOffset, int limit, int maxId, int minId)
+        {
+            var tsc = new TaskCompletionSource<MTProtoResponse<TLMessagesMessagesBase>>();
+            GetUnreadMentionsAsync(inputPeer, offsetId, addOffset, limit, maxId, minId, (callback) =>
+            {
+                tsc.TrySetResult(new MTProtoResponse<TLMessagesMessagesBase>(callback));
+            }, (faultCallback) =>
+            {
+                tsc.TrySetResult(new MTProtoResponse<TLMessagesMessagesBase>(faultCallback));
+            });
+            return tsc.Task;
+        }
+
+        [DebuggerStepThrough]
         public Task<MTProtoResponse<TLChannelsAdminLogResults>> GetAdminLogAsync(TLInputChannelBase inputChannel, string query, TLChannelAdminLogEventsFilter filter, TLVector<TLInputUserBase> admins, long maxId, long minId, int limit)
         {
             var tsc = new TaskCompletionSource<MTProtoResponse<TLChannelsAdminLogResults>>();
@@ -363,6 +377,34 @@ namespace Telegram.Api.Services
             }, (faultCallback) =>
             {
                 tsc.TrySetResult(new MTProtoResponse<TLMessagesAffectedMessages>(faultCallback));
+            });
+            return tsc.Task;
+        }
+
+        [DebuggerStepThrough]
+        public Task<MTProtoResponse<bool>> SetStickersAsync(TLInputChannelBase inputChannel, TLInputStickerSetBase stickerset)
+        {
+            var tsc = new TaskCompletionSource<MTProtoResponse<bool>>();
+            SetStickersAsync(inputChannel, stickerset, (callback) =>
+            {
+                tsc.TrySetResult(new MTProtoResponse<bool>(callback));
+            }, (faultCallback) =>
+            {
+                tsc.TrySetResult(new MTProtoResponse<bool>(faultCallback));
+            });
+            return tsc.Task;
+        }
+
+        [DebuggerStepThrough]
+        public Task<MTProtoResponse<bool>> ReadMessageContentsAsync(TLInputChannelBase inputChannel, TLVector<int> id)
+        {
+            var tsc = new TaskCompletionSource<MTProtoResponse<bool>>();
+            ReadMessageContentsAsync(inputChannel, id, (callback) =>
+            {
+                tsc.TrySetResult(new MTProtoResponse<bool>(callback));
+            }, (faultCallback) =>
+            {
+                tsc.TrySetResult(new MTProtoResponse<bool>(faultCallback));
             });
             return tsc.Task;
         }
@@ -914,10 +956,10 @@ namespace Telegram.Api.Services
         }
 
         [DebuggerStepThrough]
-        public Task<MTProtoResponse<TLContactsImportedContacts>> ImportContactsAsync(TLVector<TLInputContactBase> contacts, bool replace)
+        public Task<MTProtoResponse<TLContactsImportedContacts>> ImportContactsAsync(TLVector<TLInputContactBase> contacts)
         {
             var tsc = new TaskCompletionSource<MTProtoResponse<TLContactsImportedContacts>>();
-            ImportContactsAsync(contacts, replace, (callback) =>
+            ImportContactsAsync(contacts, (callback) =>
             {
                 tsc.TrySetResult(new MTProtoResponse<TLContactsImportedContacts>(callback));
             }, (faultCallback) =>
@@ -1250,7 +1292,7 @@ namespace Telegram.Api.Services
         }
 
         [DebuggerStepThrough]
-        public Task<MTProtoResponse<TLContactsContactsBase>> GetContactsAsync(string hash)
+        public Task<MTProtoResponse<TLContactsContactsBase>> GetContactsAsync(int hash)
         {
             var tsc = new TaskCompletionSource<MTProtoResponse<TLContactsContactsBase>>();
             GetContactsAsync(hash, (callback) =>

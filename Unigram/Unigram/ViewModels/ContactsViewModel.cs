@@ -58,13 +58,15 @@ namespace Unigram.ViewModels
             //    Items.Add(user);
             //}
 
-            var contacts = new TLUser[0];
+            var contacts = new List<TLUserBase>();
 
-            var input = string.Join(",", contacts.Select(x => x.Id).Union(new[] { SettingsHelper.UserId }).OrderBy(x => x));
-            var hash = Utils.ComputeMD5(input);
-            var hex = BitConverter.ToString(hash).Replace("-", string.Empty).ToLower();
+            //var input = string.Join(",", contacts.Select(x => x.Id).Union(new[] { SettingsHelper.UserId }).OrderBy(x => x));
+            //var hash = Utils.ComputeMD5(input);
+            //var hex = BitConverter.ToString(hash).Replace("-", string.Empty).ToLower();
 
-            var response = await ProtoService.GetContactsAsync(hex);
+            var hash = CalculateContactsHash(0, contacts.ToList());
+
+            var response = await ProtoService.GetContactsAsync(hash);
             if (response.IsSucceeded)
             {
                 var result = response.Result as TLContactsContacts;
@@ -80,14 +82,6 @@ namespace Unigram.ViewModels
                                 continue;
                             }
 
-                            //var status = LastSeenHelper.GetLastSeen(user);
-                            //var listItem = new UsersPanelListItem(user as TLUser);
-                            //listItem.fullName = user.FullName;
-                            //listItem.lastSeen = status.Item1;
-                            //listItem.lastSeenEpoch = status.Item2;
-                            //listItem.Photo = listItem._parent.Photo;
-                            //listItem.PlaceHolderColor = BindConvert.Current.Bubble(listItem._parent.Id);
-
                             Items.Add(user);
                         }
                     });
@@ -100,6 +94,26 @@ namespace Unigram.ViewModels
             }
 
             Aggregator.Subscribe(this);
+        }
+
+        public static int CalculateContactsHash(int savedCount, IList<TLUserBase> contacts)
+        {
+            if (contacts == null)
+            {
+                return 0;
+            }
+
+            long acc = 0;
+            acc = ((acc * 20261) + 0x80000000L + savedCount) % 0x80000000L;
+
+            foreach (var contact in contacts)
+            {
+                if (contact == null) continue;
+
+                acc = ((acc * 20261) + 0x80000000L + contact.Id) % 0x80000000L;
+            }
+
+            return (int)acc;
         }
 
         public async Task GetSelfAsync()
